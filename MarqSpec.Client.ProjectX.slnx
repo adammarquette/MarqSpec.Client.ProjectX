@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="PRD.md" />
+  </Folder>
+  <Project Path="MarqSpec.Client.ProjectX.Diagnostics/MarqSpec.Client.ProjectX.Diagnostics.csproj" />
+  <Project Path="MarqSpec.Client.ProjectX.Samples/MarqSpec.Client.ProjectX.Samples.csproj" />
+  <Project Path="MarqSpec.Client.ProjectX.Tests/MarqSpec.Client.ProjectX.Tests.csproj" />
+  <Project Path="MarqSpec.Client.ProjectX/MarqSpec.Client.ProjectX.csproj" />
+</Solution>
