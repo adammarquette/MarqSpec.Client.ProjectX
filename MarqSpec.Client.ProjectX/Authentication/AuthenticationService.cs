@@ -131,6 +131,111 @@ public class AuthenticationService : IAuthenticationService
         }
     }
 
+    /// <inheritdoc/>
+    public async Task<bool> ValidateSessionAsync(CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(_accessToken))
+        {
+            return false;
+        }
+
+        try
+        {
+            _logger.LogDebug("Validating current session");
+
+            var response = await _httpClient.PostAsync("/api/Auth/validate", null, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Session validation returned status {StatusCode}", response.StatusCode);
+                return false;
+            }
+
+            var validateResponse = await response.Content.ReadFromJsonAsync<ValidateResponse>(cancellationToken);
+
+            if (validateResponse == null)
+            {
+                return false;
+            }
+
+            if (validateResponse.Success && !string.IsNullOrEmpty(validateResponse.NewToken))
+            {
+                _accessToken = validateResponse.NewToken;
+                _tokenExpiration = DateTime.UtcNow.AddMinutes(55);
+                _logger.LogInformation("Session validated and token renewed");
+            }
+            else if (validateResponse.Success)
+            {
+                _logger.LogDebug("Session is valid");
+            }
+            else
+            {
+                _logger.LogWarning("Session is invalid. Error code: {ErrorCode}, Message: {ErrorMessage}",
+                    validateResponse.ErrorCode, validateResponse.ErrorMessage);
+                _accessToken = null;
+                _tokenExpiration = DateTime.MinValue;
+            }
+
+            return validateResponse.Success;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error occurred during session validation");
+            throw new AuthenticationException("Network error occurred during session validation.", ex);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred during session validation");
+            throw new AuthenticationException("Unexpected error occurred during session validation.", ex);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task LogoutAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Logging out current session");
+
+            if (!string.IsNullOrEmpty(_accessToken))
+            {
+                var response = await _httpClient.PostAsync("/api/Auth/logout", null, cancellationToken);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var logoutResponse = await response.Content.ReadFromJsonAsync<LogoutResponse>(cancellationToken);
+                    if (logoutResponse?.Success == true)
+                    {
+                        _logger.LogInformation("Successfully logged out");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Logout returned unsuccessful response: {ErrorMessage}", logoutResponse?.ErrorMessage);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Logout request returned status {StatusCode}", response.StatusCode);
+                }
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error occurred during logout");
+            throw new AuthenticationException("Network error occurred during logout.", ex);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred during logout");
+            throw new AuthenticationException("Unexpected error occurred during logout.", ex);
+        }
+        finally
+        {
+            _accessToken = null;
+            _tokenExpiration = DateTime.MinValue;
+        }
+    }
+
     private class AuthenticationRequest
     {
         [JsonPropertyName("username")]
@@ -145,6 +250,33 @@ public class AuthenticationService : IAuthenticationService
         [JsonPropertyName("token")]
         public string Token { get; set; } = string.Empty;
 
+        [JsonPropertyName("success")]
+        public bool Success { get; set; }
+
+        [JsonPropertyName("errorCode")]
+        public int ErrorCode { get; set; }
+
+        [JsonPropertyName("errorMessage")]
+        public string? ErrorMessage { get; set; }
+    }
+
+    private class ValidateResponse
+    {
+        [JsonPropertyName("success")]
+        public bool Success { get; set; }
+
+        [JsonPropertyName("errorCode")]
+        public int ErrorCode { get; set; }
+
+        [JsonPropertyName("errorMessage")]
+        public string? ErrorMessage { get; set; }
+
+        [JsonPropertyName("newToken")]
+        public string? NewToken { get; set; }
+    }
+
+    private class LogoutResponse
+    {
         [JsonPropertyName("success")]
         public bool Success { get; set; }
 

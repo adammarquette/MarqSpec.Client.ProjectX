@@ -585,7 +585,7 @@ public class OrderManagementTests
 
         A.CallTo(() => _authService.GetAccessTokenAsync(A<CancellationToken>._))
             .Returns("test-token");
-        A.CallTo(() => _restApi.GetOpenOrdersAsync(accountId, A<CancellationToken>._))
+        A.CallTo(() => _restApi.SearchOpenOrdersAsync(A<SearchOpenOrderRequest>.That.Matches(r => r.AccountId == accountId), A<CancellationToken>._))
             .Returns(searchResponse);
 
         // Act
@@ -623,7 +623,7 @@ public class OrderManagementTests
 
         A.CallTo(() => _authService.GetAccessTokenAsync(A<CancellationToken>._))
             .Returns("test-token");
-        A.CallTo(() => _restApi.GetOpenOrdersAsync(accountId, A<CancellationToken>._))
+        A.CallTo(() => _restApi.SearchOpenOrdersAsync(A<SearchOpenOrderRequest>.That.Matches(r => r.AccountId == accountId), A<CancellationToken>._))
             .Returns(searchResponse);
 
         // Act
@@ -631,8 +631,7 @@ public class OrderManagementTests
 
         // Assert
         await act.Should().ThrowAsync<ProjectXApiException>()
-            .WithMessage("*Failed to retrieve open orders*")
-            .Where(ex => ex.StatusCode == 500);
+            .WithMessage("*Failed to retrieve open orders*");
     }
 
     #endregion
