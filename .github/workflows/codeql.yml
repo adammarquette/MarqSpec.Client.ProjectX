@@ -1,0 +1,52 @@
+name: CodeQL Security Analysis
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+  schedule:
+    # Run every Monday at 08:00 UTC to catch newly published CVEs.
+    - cron: '0 8 * * 1'
+
+permissions:
+  contents: read
+  actions: read  # required for CodeQL to fetch workflow run information
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # required to upload SARIF results
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - csharp
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet build --configuration Release
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:${{ matrix.language }}'

@@ -10,9 +10,32 @@ on:
         required: true
         type: string
 
+# Least-privilege permissions — jobs may escalate individually if needed.
+permissions:
+  contents: read
+
 jobs:
-  publish:
+  # ---------------------------------------------------------------
+  # Gate: pauses execution and requires manual approval from the
+  # "production" environment's required reviewers before any
+  # package is built or published.
+  # ---------------------------------------------------------------
+  gate:
+    name: Await release approval
     runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Release approved
+        run: echo "Release approved — proceeding to build and publish."
+
+  publish:
+    name: Build and publish NuGet package
+    needs: gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
     - name: Checkout code
@@ -43,6 +66,10 @@ jobs:
           VERSION="${VERSION#v}"
         else
           VERSION="${{ github.event.inputs.version }}"
+        fi
+        if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+([.-][a-zA-Z0-9.]+)?$'; then
+          echo "::error::Version '$VERSION' is not a valid semver string (e.g. 1.2.3 or 1.2.3-beta.1)."
+          exit 1
         fi
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         
