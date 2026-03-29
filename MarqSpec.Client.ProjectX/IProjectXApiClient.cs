@@ -13,6 +13,14 @@ namespace MarqSpec.Client.ProjectX;
 public interface IProjectXApiClient
 {
     /// <summary>
+    /// Gets trading accounts for the authenticated user.
+    /// </summary>
+    /// <param name="onlyActiveAccounts">When <see langword="true"/>, returns only active accounts.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The list of trading accounts matching the criteria.</returns>
+    Task<IEnumerable<TradingAccount>> GetAccountsAsync(bool onlyActiveAccounts = true, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Searches for contracts based on search criteria.
     /// </summary>
     /// <param name="searchText">Optional search text to filter contracts.</param>
@@ -99,10 +107,70 @@ public interface IProjectXApiClient
     Task<IEnumerable<Order>> GetOrdersAsync(int accountId, DateTime? startTime = null, DateTime? endTime = null, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a specific contract by its ID using a direct lookup.
+    /// </summary>
+    /// <param name="contractId">The exact contract ID to retrieve.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The contract if found, otherwise <see langword="null"/>.</returns>
+    Task<Contract?> GetContractByIdAsync(string contractId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists all currently available contracts.
+    /// </summary>
+    /// <param name="live">Whether to list live or simulation contracts.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The list of available contracts.</returns>
+    Task<IEnumerable<Contract>> GetAvailableContractsAsync(bool live = true, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets all open orders for an account.
     /// </summary>
     /// <param name="accountId">The account ID to query.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The list of open orders.</returns>
     Task<IEnumerable<Order>> GetOpenOrdersAsync(int accountId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all open positions for an account.
+    /// </summary>
+    /// <param name="accountId">The account ID to query.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The list of open positions.</returns>
+    Task<IEnumerable<Position>> GetOpenPositionsAsync(int accountId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Closes the full position for a contract on an account.
+    /// </summary>
+    /// <param name="accountId">The account ID that holds the position.</param>
+    /// <param name="contractId">The contract ID of the position to close.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The close position response.</returns>
+    Task<ClosePositionResponse> ClosePositionAsync(int accountId, string contractId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Partially closes a position for a contract on an account.
+    /// </summary>
+    /// <param name="accountId">The account ID that holds the position.</param>
+    /// <param name="contractId">The contract ID of the position to partially close.</param>
+    /// <param name="size">The number of contracts to close.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The partial close position response.</returns>
+    Task<PartialClosePositionResponse> PartialClosePositionAsync(int accountId, string contractId, int size, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Searches for half-turn trade executions on an account within an optional time range.
+    /// </summary>
+    /// <param name="accountId">The account ID to query.</param>
+    /// <param name="startTime">The start of the time range.</param>
+    /// <param name="endTime">The end of the time range.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The list of trade executions matching the criteria.</returns>
+    Task<IEnumerable<HalfTrade>> GetTradesAsync(int accountId, DateTime? startTime = null, DateTime? endTime = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks whether the API is responsive.
+    /// </summary>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns><see langword="true"/> if the API returned a pong response.</returns>
+    Task<bool> PingAsync(CancellationToken cancellationToken = default);
 }
