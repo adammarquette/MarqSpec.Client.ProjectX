@@ -42,6 +42,42 @@ public class ProjectXApiClient : IProjectXApiClient
     }
 
     /// <inheritdoc/>
+    public async Task<IEnumerable<TradingAccount>> GetAccountsAsync(bool onlyActiveAccounts = true, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Retrieving accounts. OnlyActiveAccounts: {OnlyActiveAccounts}", onlyActiveAccounts);
+
+            await EnsureAuthenticatedAsync(cancellationToken);
+            var request = new SearchAccountRequest { OnlyActiveAccounts = onlyActiveAccounts };
+            var response = await _restApi.SearchAccountsAsync(request, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new ProjectXApiException($"Failed to retrieve accounts: {response.ErrorMessage}", response.ErrorCode);
+            }
+
+            _logger.LogInformation("Successfully retrieved {Count} accounts", response.Accounts.Count);
+            return response.Accounts;
+        }
+        catch (ApiException ex)
+        {
+            _logger.LogError(ex, "API error occurred while retrieving accounts");
+            throw new ProjectXApiException($"Failed to retrieve accounts: {ex.Message}", (int)ex.StatusCode, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error occurred while retrieving accounts");
+            throw new ProjectXApiException("Network error occurred while retrieving accounts.", ex);
+        }
+        catch (Exception ex) when (ex is not ProjectXApiException)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while retrieving accounts");
+            throw new ProjectXApiException("Unexpected error occurred while retrieving accounts.", ex);
+        }
+    }
+
+    /// <inheritdoc/>
     public async Task<IEnumerable<Contract>> SearchContractsAsync(string? searchText = null, bool live = true, CancellationToken cancellationToken = default)
     {
         try
@@ -85,31 +121,38 @@ public class ProjectXApiClient : IProjectXApiClient
             throw new ArgumentException("Contract ID cannot be null or whitespace.", nameof(contractId));
         }
 
+        return await GetContractByIdAsync(contractId, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<Contract?> GetContractByIdAsync(string contractId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(contractId))
+        {
+            throw new ArgumentException("Contract ID cannot be null or whitespace.", nameof(contractId));
+        }
+
         try
         {
-            _logger.LogDebug("Retrieving contract: {ContractId}, Live: {Live}", contractId, live);
+            _logger.LogDebug("Retrieving contract by ID: {ContractId}", contractId);
 
             await EnsureAuthenticatedAsync(cancellationToken);
-            var request = new SearchContractRequest { SearchText = contractId, Live = live };
-            var response = await _restApi.SearchContractsAsync(request, cancellationToken);
+            var request = new SearchContractByIdRequest { ContractId = contractId };
+            var response = await _restApi.SearchContractByIdAsync(request, cancellationToken);
+
+            if (response.ErrorCode == 1)
+            {
+                _logger.LogDebug("Contract not found: {ContractId}", contractId);
+                return null;
+            }
 
             if (!response.Success)
             {
                 throw new ProjectXApiException($"Failed to retrieve contract: {response.ErrorMessage}", response.ErrorCode);
             }
 
-            var contract = response.Contracts.FirstOrDefault(c => c.Id == contractId);
-
-            if (contract != null)
-            {
-                _logger.LogInformation("Successfully retrieved contract: {ContractId}", contractId);
-            }
-            else
-            {
-                _logger.LogDebug("Contract not found: {ContractId}", contractId);
-            }
-
-            return contract;
+            _logger.LogInformation("Successfully retrieved contract: {ContractId}", contractId);
+            return response.Contract;
         }
         catch (ApiException ex)
         {
@@ -125,6 +168,42 @@ public class ProjectXApiClient : IProjectXApiClient
         {
             _logger.LogError(ex, "Unexpected error occurred while retrieving contract: {ContractId}", contractId);
             throw new ProjectXApiException("Unexpected error occurred while retrieving contract.", ex);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<IEnumerable<Contract>> GetAvailableContractsAsync(bool live = true, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Retrieving available contracts. Live: {Live}", live);
+
+            await EnsureAuthenticatedAsync(cancellationToken);
+            var request = new ListAvailableContractRequest { Live = live };
+            var response = await _restApi.GetAvailableContractsAsync(request, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new ProjectXApiException($"Failed to retrieve available contracts: {response.ErrorMessage}", response.ErrorCode);
+            }
+
+            _logger.LogInformation("Successfully retrieved {Count} available contracts", response.Contracts.Count);
+            return response.Contracts;
+        }
+        catch (ApiException ex)
+        {
+            _logger.LogError(ex, "API error occurred while retrieving available contracts");
+            throw new ProjectXApiException($"Failed to retrieve available contracts: {ex.Message}", (int)ex.StatusCode, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error occurred while retrieving available contracts");
+            throw new ProjectXApiException("Network error occurred while retrieving available contracts.", ex);
+        }
+        catch (Exception ex) when (ex is not ProjectXApiException)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while retrieving available contracts");
+            throw new ProjectXApiException("Unexpected error occurred while retrieving available contracts.", ex);
         }
     }
 
@@ -494,14 +573,15 @@ public class ProjectXApiClient : IProjectXApiClient
             _logger.LogDebug("Retrieving open orders for account: {AccountId}", accountId);
 
             await EnsureAuthenticatedAsync(cancellationToken);
-            var response = await _restApi.GetOpenOrdersAsync(accountId, cancellationToken);
+            var request = new SearchOpenOrderRequest { AccountId = accountId };
+            var response = await _restApi.SearchOpenOrdersAsync(request, cancellationToken);
 
             if (!response.Success)
             {
                 throw new ProjectXApiException($"Failed to retrieve open orders: {response.ErrorMessage}", response.ErrorCode);
             }
 
-            _logger.LogInformation("Successfully retrieved {Count} open orders for account: {AccountId}", 
+            _logger.LogInformation("Successfully retrieved {Count} open orders for account: {AccountId}",
                 response.Orders.Count, accountId);
 
             return response.Orders;
@@ -520,6 +600,233 @@ public class ProjectXApiClient : IProjectXApiClient
         {
             _logger.LogError(ex, "Unexpected error occurred while retrieving open orders for account: {AccountId}", accountId);
             throw new ProjectXApiException("Unexpected error occurred while retrieving open orders.", ex);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<IEnumerable<Position>> GetOpenPositionsAsync(int accountId, CancellationToken cancellationToken = default)
+    {
+        if (accountId <= 0)
+        {
+            throw new ArgumentException("Account ID must be greater than zero.", nameof(accountId));
+        }
+
+        try
+        {
+            _logger.LogDebug("Retrieving open positions for account: {AccountId}", accountId);
+
+            await EnsureAuthenticatedAsync(cancellationToken);
+            var request = new SearchPositionRequest { AccountId = accountId };
+            var response = await _restApi.SearchOpenPositionsAsync(request, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new ProjectXApiException($"Failed to retrieve open positions: {response.ErrorMessage}", response.ErrorCode);
+            }
+
+            _logger.LogInformation("Successfully retrieved {Count} open positions for account: {AccountId}",
+                response.Positions.Count, accountId);
+
+            return response.Positions;
+        }
+        catch (ApiException ex)
+        {
+            _logger.LogError(ex, "API error occurred while retrieving open positions for account: {AccountId}", accountId);
+            throw new ProjectXApiException($"Failed to retrieve open positions: {ex.Message}", (int)ex.StatusCode, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error occurred while retrieving open positions for account: {AccountId}", accountId);
+            throw new ProjectXApiException("Network error occurred while retrieving open positions.", ex);
+        }
+        catch (Exception ex) when (ex is not ProjectXApiException && ex is not ArgumentException)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while retrieving open positions for account: {AccountId}", accountId);
+            throw new ProjectXApiException("Unexpected error occurred while retrieving open positions.", ex);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<ClosePositionResponse> ClosePositionAsync(int accountId, string contractId, CancellationToken cancellationToken = default)
+    {
+        if (accountId <= 0)
+        {
+            throw new ArgumentException("Account ID must be greater than zero.", nameof(accountId));
+        }
+
+        if (string.IsNullOrWhiteSpace(contractId))
+        {
+            throw new ArgumentException("Contract ID cannot be null or whitespace.", nameof(contractId));
+        }
+
+        try
+        {
+            _logger.LogDebug("Closing position for account: {AccountId}, Contract: {ContractId}", accountId, contractId);
+
+            await EnsureAuthenticatedAsync(cancellationToken);
+            var request = new CloseContractPositionRequest { AccountId = accountId, ContractId = contractId };
+            var response = await _restApi.CloseContractPositionAsync(request, cancellationToken);
+
+            if (response.Success)
+            {
+                _logger.LogInformation("Successfully closed position for account: {AccountId}, Contract: {ContractId}", accountId, contractId);
+            }
+            else
+            {
+                _logger.LogWarning("Close position failed. Error Code: {ErrorCode}, Message: {ErrorMessage}",
+                    response.ErrorCode, response.ErrorMessage);
+            }
+
+            return response;
+        }
+        catch (ApiException ex)
+        {
+            _logger.LogError(ex, "API error occurred while closing position for account: {AccountId}, Contract: {ContractId}", accountId, contractId);
+            throw new ProjectXApiException($"Failed to close position: {ex.Message}", (int)ex.StatusCode, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error occurred while closing position for account: {AccountId}, Contract: {ContractId}", accountId, contractId);
+            throw new ProjectXApiException("Network error occurred while closing position.", ex);
+        }
+        catch (Exception ex) when (ex is not ProjectXApiException && ex is not ArgumentException)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while closing position for account: {AccountId}, Contract: {ContractId}", accountId, contractId);
+            throw new ProjectXApiException("Unexpected error occurred while closing position.", ex);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<PartialClosePositionResponse> PartialClosePositionAsync(int accountId, string contractId, int size, CancellationToken cancellationToken = default)
+    {
+        if (accountId <= 0)
+        {
+            throw new ArgumentException("Account ID must be greater than zero.", nameof(accountId));
+        }
+
+        if (string.IsNullOrWhiteSpace(contractId))
+        {
+            throw new ArgumentException("Contract ID cannot be null or whitespace.", nameof(contractId));
+        }
+
+        if (size <= 0)
+        {
+            throw new ArgumentException("Size must be greater than zero.", nameof(size));
+        }
+
+        try
+        {
+            _logger.LogDebug("Partially closing position for account: {AccountId}, Contract: {ContractId}, Size: {Size}", accountId, contractId, size);
+
+            await EnsureAuthenticatedAsync(cancellationToken);
+            var request = new PartialCloseContractPositionRequest { AccountId = accountId, ContractId = contractId, Size = size };
+            var response = await _restApi.PartialCloseContractPositionAsync(request, cancellationToken);
+
+            if (response.Success)
+            {
+                _logger.LogInformation("Successfully partially closed position for account: {AccountId}, Contract: {ContractId}, Size: {Size}", accountId, contractId, size);
+            }
+            else
+            {
+                _logger.LogWarning("Partial close position failed. Error Code: {ErrorCode}, Message: {ErrorMessage}",
+                    response.ErrorCode, response.ErrorMessage);
+            }
+
+            return response;
+        }
+        catch (ApiException ex)
+        {
+            _logger.LogError(ex, "API error occurred while partially closing position for account: {AccountId}, Contract: {ContractId}", accountId, contractId);
+            throw new ProjectXApiException($"Failed to partially close position: {ex.Message}", (int)ex.StatusCode, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error occurred while partially closing position for account: {AccountId}, Contract: {ContractId}", accountId, contractId);
+            throw new ProjectXApiException("Network error occurred while partially closing position.", ex);
+        }
+        catch (Exception ex) when (ex is not ProjectXApiException && ex is not ArgumentException)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while partially closing position for account: {AccountId}, Contract: {ContractId}", accountId, contractId);
+            throw new ProjectXApiException("Unexpected error occurred while partially closing position.", ex);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<IEnumerable<HalfTrade>> GetTradesAsync(int accountId, DateTime? startTime = null, DateTime? endTime = null, CancellationToken cancellationToken = default)
+    {
+        if (accountId <= 0)
+        {
+            throw new ArgumentException("Account ID must be greater than zero.", nameof(accountId));
+        }
+
+        try
+        {
+            _logger.LogDebug("Retrieving trades for account: {AccountId}, StartTime: {StartTime}, EndTime: {EndTime}",
+                accountId, startTime, endTime);
+
+            await EnsureAuthenticatedAsync(cancellationToken);
+            var request = new SearchTradeRequest
+            {
+                AccountId = accountId,
+                StartTimestamp = startTime,
+                EndTimestamp = endTime
+            };
+            var response = await _restApi.SearchTradesAsync(request, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new ProjectXApiException($"Failed to retrieve trades: {response.ErrorMessage}", response.ErrorCode);
+            }
+
+            _logger.LogInformation("Successfully retrieved {Count} trades for account: {AccountId}",
+                response.Trades.Count, accountId);
+
+            return response.Trades;
+        }
+        catch (ApiException ex)
+        {
+            _logger.LogError(ex, "API error occurred while retrieving trades for account: {AccountId}", accountId);
+            throw new ProjectXApiException($"Failed to retrieve trades: {ex.Message}", (int)ex.StatusCode, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error occurred while retrieving trades for account: {AccountId}", accountId);
+            throw new ProjectXApiException("Network error occurred while retrieving trades.", ex);
+        }
+        catch (Exception ex) when (ex is not ProjectXApiException && ex is not ArgumentException)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while retrieving trades for account: {AccountId}", accountId);
+            throw new ProjectXApiException("Unexpected error occurred while retrieving trades.", ex);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> PingAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Pinging API");
+
+            var response = await _restApi.PingAsync(cancellationToken);
+            var isAlive = string.Equals(response, "pong", StringComparison.OrdinalIgnoreCase);
+
+            _logger.LogInformation("Ping response: {Response}", response);
+            return isAlive;
+        }
+        catch (ApiException ex)
+        {
+            _logger.LogError(ex, "API error occurred while pinging");
+            throw new ProjectXApiException($"Failed to ping API: {ex.Message}", (int)ex.StatusCode, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error occurred while pinging");
+            throw new ProjectXApiException("Network error occurred while pinging API.", ex);
+        }
+        catch (Exception ex) when (ex is not ProjectXApiException)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while pinging");
+            throw new ProjectXApiException("Unexpected error occurred while pinging API.", ex);
         }
     }
 }

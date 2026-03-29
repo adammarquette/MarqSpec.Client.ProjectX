@@ -13,6 +13,15 @@ namespace MarqSpec.Client.ProjectX.Api.Rest;
 public interface IProjectXRestApi
 {
     /// <summary>
+    /// Searches for trading accounts based on the provided criteria.
+    /// </summary>
+    /// <param name="request">The search criteria.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The search results containing matching accounts.</returns>
+    [Post("/api/Account/search")]
+    Task<SearchAccountResponse> SearchAccountsAsync([Body] SearchAccountRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Searches for contracts based on search criteria.
     /// </summary>
     /// <param name="request">The search criteria.</param>
@@ -20,6 +29,24 @@ public interface IProjectXRestApi
     /// <returns>The search results containing matching contracts.</returns>
     [Post("/api/Contract/search")]
     Task<SearchContractResponse> SearchContractsAsync([Body] SearchContractRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Searches for a contract by its unique ID.
+    /// </summary>
+    /// <param name="request">The request containing the contract ID.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The response containing the matching contract if found.</returns>
+    [Post("/api/Contract/searchById")]
+    Task<SearchContractByIdResponse> SearchContractByIdAsync([Body] SearchContractByIdRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists all currently available contracts.
+    /// </summary>
+    /// <param name="request">The request specifying live or simulation contracts.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The response containing the available contracts.</returns>
+    [Post("/api/Contract/available")]
+    Task<ListAvailableContractResponse> GetAvailableContractsAsync([Body] ListAvailableContractRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves historical price bars for a contract.
@@ -69,9 +96,54 @@ public interface IProjectXRestApi
     /// <summary>
     /// Gets all open orders for an account.
     /// </summary>
-    /// <param name="accountId">The account ID to query.</param>
+    /// <param name="request">The request containing the account ID.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The search results containing open orders.</returns>
-    [Get("/api/Order/searchOpen")]
-    Task<SearchOrderResponse> GetOpenOrdersAsync([Query] int accountId, CancellationToken cancellationToken = default);
+    [Post("/api/Order/searchOpen")]
+    Task<SearchOrderResponse> SearchOpenOrdersAsync([Body] SearchOpenOrderRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Searches for open positions on an account.
+    /// </summary>
+    /// <param name="request">The request containing the account ID.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The response containing the open positions.</returns>
+    [Post("/api/Position/searchOpen")]
+    Task<SearchPositionResponse> SearchOpenPositionsAsync([Body] SearchPositionRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Closes the full position for a contract on an account.
+    /// </summary>
+    /// <param name="request">The request containing the account ID and contract ID.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The response indicating success or failure.</returns>
+    [Post("/api/Position/closeContract")]
+    Task<ClosePositionResponse> CloseContractPositionAsync([Body] CloseContractPositionRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Partially closes a position for a contract on an account.
+    /// </summary>
+    /// <param name="request">The request containing the account ID, contract ID, and size to close.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The response indicating success or failure.</returns>
+    [Post("/api/Position/partialCloseContract")]
+    Task<PartialClosePositionResponse> PartialCloseContractPositionAsync([Body] PartialCloseContractPositionRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Searches for half-turn trade executions on an account.
+    /// </summary>
+    /// <param name="request">The search criteria.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The response containing the matching trades.</returns>
+    [Post("/api/Trade/search")]
+    Task<SearchTradeResponse> SearchTradesAsync([Body] SearchTradeRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks whether the API is responsive.
+    /// </summary>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The string <c>"pong"</c> if the API is available.</returns>
+    [Get("/api/Status/ping")]
+    Task<string> PingAsync(CancellationToken cancellationToken = default);
 }
+

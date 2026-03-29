@@ -6,6 +6,7 @@ using MarqSpec.Client.ProjectX.Authentication;
 using MarqSpec.Client.ProjectX.Exceptions;
 using Microsoft.Extensions.Logging;
 using Refit;
+using ContractModel = MarqSpec.Client.ProjectX.Api.Models.Contract;
 
 namespace MarqSpec.Client.ProjectX.Tests.MarketData;
 
@@ -33,9 +34,9 @@ public class MarketDataTests
     public async Task SearchContractsAsync_WithValidCriteria_ReturnsContracts()
     {
         // Arrange
-        var expectedContracts = new List<Contract>
+        var expectedContracts = new List<ContractModel>
         {
-            new Contract
+            new ContractModel
             {
                 Id = "ESH5",
                 Name = "E-mini S&P 500 Mar 2025",
@@ -45,7 +46,7 @@ public class MarketDataTests
                 ActiveContract = true,
                 SymbolId = "ES"
             },
-            new Contract
+            new ContractModel
             {
                 Id = "ESM5",
                 Name = "E-mini S&P 500 Jun 2025",
@@ -90,7 +91,7 @@ public class MarketDataTests
         {
             Success = true,
             ErrorCode = 0,
-            Contracts = new List<Contract> { new Contract { Id = "ESH5" } }
+            Contracts = new List<ContractModel> { new ContractModel { Id = "ESH5" } }
         };
 
         A.CallTo(() => _authService.GetAccessTokenAsync(A<CancellationToken>._))
@@ -160,7 +161,7 @@ public class MarketDataTests
     public async Task GetContractAsync_WithExistingContract_ReturnsContract()
     {
         // Arrange
-        var expectedContract = new Contract
+        var expectedContract = new ContractModel
         {
             Id = "ESH5",
             Name = "E-mini S&P 500 Mar 2025",
@@ -175,7 +176,7 @@ public class MarketDataTests
         {
             Success = true,
             ErrorCode = 0,
-            Contracts = new List<Contract> { expectedContract }
+            Contracts = new List<ContractModel> { expectedContract }
         };
 
         A.CallTo(() => _authService.GetAccessTokenAsync(A<CancellationToken>._))
@@ -201,7 +202,7 @@ public class MarketDataTests
         {
             Success = true,
             ErrorCode = 0,
-            Contracts = new List<Contract>()
+            Contracts = new List<ContractModel>()
         };
 
         A.CallTo(() => _authService.GetAccessTokenAsync(A<CancellationToken>._))
