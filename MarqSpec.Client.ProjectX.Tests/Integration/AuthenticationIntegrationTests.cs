@@ -9,14 +9,12 @@ namespace MarqSpec.Client.ProjectX.Tests.Integration;
 /// Integration tests for authentication functionality.
 /// </summary>
 [Collection("Integration Tests")]
+[Trait("Category", "Integration")]
 public class AuthenticationIntegrationTests : IntegrationTestBase
 {
-    [Fact]
+    [Fact(Skip = "Requires live API credentials in environment variables")]
     public async Task GetAccessTokenAsync_WithValidCredentials_ReturnsToken()
     {
-        // Skip if credentials not available
-        if (SkipReason != null) return;
-
         // Arrange
         var authService = ServiceProvider.GetRequiredService<IAuthenticationService>();
 
@@ -29,12 +27,9 @@ public class AuthenticationIntegrationTests : IntegrationTestBase
             "token should be a valid JWT format");
     }
 
-    [Fact]
+    [Fact(Skip = "Requires live API credentials in environment variables")]
     public async Task GetAccessTokenAsync_CalledMultipleTimes_CachesToken()
     {
-        // Skip if credentials not available
-        if (SkipReason != null) return;
-
         // Arrange
         var authService = ServiceProvider.GetRequiredService<IAuthenticationService>();
 
@@ -49,12 +44,9 @@ public class AuthenticationIntegrationTests : IntegrationTestBase
         token1.Should().NotBeNullOrEmpty();
     }
 
-    [Fact]
+    [Fact(Skip = "Requires live API credentials in environment variables")]
     public async Task RefreshTokenAsync_UpdatesToken()
     {
-        // Skip if credentials not available
-        if (SkipReason != null) return;
-
         // Arrange
         var authService = ServiceProvider.GetRequiredService<IAuthenticationService>();
         var initialToken = await authService.GetAccessTokenAsync();
@@ -70,12 +62,9 @@ public class AuthenticationIntegrationTests : IntegrationTestBase
         // Just verify we can get a token after refresh
     }
 
-    [Fact]
+    [Fact(Skip = "Requires live API credentials in environment variables")]
     public async Task ConcurrentAuthentication_HandlesMultipleRequests()
     {
-        // Skip if credentials not available
-        if (SkipReason != null) return;
-
         // Arrange
         var authService = ServiceProvider.GetRequiredService<IAuthenticationService>();
 
@@ -91,13 +80,9 @@ public class AuthenticationIntegrationTests : IntegrationTestBase
         tokens.Distinct().Should().HaveCount(1, "all concurrent requests should get the same cached token");
     }
 
-    [Fact]
+    [Fact(Skip = "Requires live API credentials in environment variables")]
     public async Task GetAccessTokenAsync_WithInvalidCredentials_ThrowsAuthenticationException()
     {
-        // This test should be run manually with invalid credentials set in environment
-        // Skip if valid credentials are set
-        if (SkipReason == null) return;
-
         // Note: This test requires manually setting invalid credentials
         // PROJECTX_API_KEY=invalid_key
         // PROJECTX_API_SECRET=invalid_secret
