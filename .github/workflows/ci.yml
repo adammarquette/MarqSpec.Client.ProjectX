@@ -22,7 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      checks: write       # required to publish test results
     
     steps:
     - name: Checkout code

@@ -7,12 +7,14 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write  # required to post a comment on the PR
 
 jobs:
   dependency-review:
     name: Scan dependencies for vulnerabilities
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # required to post a comment on the PR
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
