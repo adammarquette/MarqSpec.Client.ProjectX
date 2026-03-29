@@ -14,6 +14,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
 {
     private readonly IAuthenticationService _authService;
     private readonly ILogger<ProjectXWebSocketClient> _logger;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly WebSocketOptions _options;
 
     private HubConnection? _marketHub;
@@ -29,14 +30,17 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
     /// </summary>
     /// <param name="authService">The authentication service.</param>
     /// <param name="options">The WebSocket configuration options.</param>
+    /// <param name="loggerFactory">The logger factory for creating loggers.</param>
     /// <param name="logger">The logger instance.</param>
     public ProjectXWebSocketClient(
         IAuthenticationService authService,
         IOptions<WebSocketOptions> options,
+        ILoggerFactory loggerFactory,
         ILogger<ProjectXWebSocketClient> logger)
     {
         _authService = authService;
         _options = options.Value;
+        _loggerFactory = loggerFactory;
         _logger = logger;
     }
 
@@ -202,6 +206,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to subscribe to price updates for contract: {ContractId}", contractId);
+            RaiseMessageSendFailed("Market", "SubscribeToPrices", [contractId], ex);
             throw;
         }
     }
@@ -225,6 +230,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to unsubscribe from price updates for contract: {ContractId}", contractId);
+            RaiseMessageSendFailed("Market", "UnsubscribeFromPrices", [contractId], ex);
             throw;
         }
     }
@@ -248,6 +254,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to subscribe to order book updates for contract: {ContractId}", contractId);
+            RaiseMessageSendFailed("Market", "SubscribeToDepth", [contractId], ex);
             throw;
         }
     }
@@ -271,6 +278,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to unsubscribe from order book updates for contract: {ContractId}", contractId);
+            RaiseMessageSendFailed("Market", "UnsubscribeFromDepth", [contractId], ex);
             throw;
         }
     }
@@ -294,6 +302,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to subscribe to trade updates for contract: {ContractId}", contractId);
+            RaiseMessageSendFailed("Market", "SubscribeToTrades", [contractId], ex);
             throw;
         }
     }
@@ -317,6 +326,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to unsubscribe from trade updates for contract: {ContractId}", contractId);
+            RaiseMessageSendFailed("Market", "UnsubscribeFromTrades", [contractId], ex);
             throw;
         }
     }
@@ -357,6 +367,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to subscribe to order updates for account: {AccountId}", accountId);
+            RaiseMessageSendFailed("User", "SubscribeToOrders", [accountId], ex);
             throw;
         }
     }
@@ -380,6 +391,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to unsubscribe from order updates for account: {AccountId}", accountId);
+            RaiseMessageSendFailed("User", "UnsubscribeFromOrders", [accountId], ex);
             throw;
         }
     }
@@ -393,6 +405,13 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
 
     #endregion
 
+    #region Error Reporting
+
+    /// <inheritdoc/>
+    public event EventHandler<WebSocketMessageFailedEventArgs>? MessageSendFailed;
+
+    #endregion
+
     #region Private Helper Methods
 
     private HubConnection BuildHubConnection(string hubUrl, string accessToken)
@@ -400,13 +419,14 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         var builder = new HubConnectionBuilder()
             .WithUrl(hubUrl, options =>
             {
-                options.AccessTokenProvider = () => Task.FromResult<string?>(accessToken);
+                // Use a delegate that fetches a fresh token on each reconnect
+                options.AccessTokenProvider = async () => await _authService.GetAccessTokenAsync();
                 options.Headers.Add("Authorization", $"Bearer {accessToken}");
             })
             .WithAutomaticReconnect(new ReconnectPolicy(_options))
             .ConfigureLogging(logging =>
             {
-                logging.AddProvider(_logger as ILoggerProvider ?? new NullLoggerProvider());
+                logging.AddProvider(new LoggerFactoryProvider(_loggerFactory));
             });
 
         return builder.Build();
@@ -551,6 +571,17 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         }
     }
 
+    private void RaiseMessageSendFailed(string hubName, string methodName, object?[] arguments, Exception exception)
+    {
+        MessageSendFailed?.Invoke(this, new WebSocketMessageFailedEventArgs
+        {
+            HubName = hubName,
+            MethodName = methodName,
+            Arguments = arguments,
+            Exception = exception
+        });
+    }
+
     #endregion
 
     #region IAsyncDisposable
@@ -602,17 +633,14 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         }
     }
 
-    private class NullLoggerProvider : ILoggerProvider
+    private class LoggerFactoryProvider : ILoggerProvider
     {
-        public ILogger CreateLogger(string categoryName) => new NullLogger();
-        public void Dispose() { }
+        private readonly ILoggerFactory _factory;
 
-        private class NullLogger : ILogger
-        {
-            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-            public bool IsEnabled(LogLevel logLevel) => false;
-            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) { }
-        }
+        public LoggerFactoryProvider(ILoggerFactory factory) => _factory = factory;
+
+        public ILogger CreateLogger(string categoryName) => _factory.CreateLogger(categoryName);
+        public void Dispose() { }
     }
 
     #endregion

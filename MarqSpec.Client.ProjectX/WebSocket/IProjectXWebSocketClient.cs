@@ -158,4 +158,13 @@ public interface IProjectXWebSocketClient : IAsyncDisposable
     event EventHandler<OrderUpdate>? OrderUpdateReceived;
 
     #endregion
+
+    #region Error Reporting
+
+    /// <summary>
+    /// Occurs when a WebSocket message fails to send (subscribe/unsubscribe/invoke).
+    /// </summary>
+    event EventHandler<WebSocketMessageFailedEventArgs>? MessageSendFailed;
+
+    #endregion
 }

@@ -78,6 +78,25 @@ public static class ServiceCollectionExtensions
                     args.Outcome.Exception is HttpRequestException ||
                     (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests) ||
                     (args.Outcome.Result?.StatusCode >= HttpStatusCode.InternalServerError));
+                options.Retry.DelayGenerator = args =>
+                {
+                    if (args.Outcome.Result is { StatusCode: HttpStatusCode.TooManyRequests } response
+                        && response.Headers.RetryAfter is { } retryAfter)
+                    {
+                        TimeSpan? delay = retryAfter.Delta
+                            ?? (retryAfter.Date.HasValue
+                                ? retryAfter.Date.Value - DateTimeOffset.UtcNow
+                                : null);
+
+                        if (delay.HasValue && delay.Value > TimeSpan.Zero)
+                        {
+                            return new ValueTask<TimeSpan?>(delay);
+                        }
+                    }
+
+                    // Fall back to the default exponential backoff
+                    return new ValueTask<TimeSpan?>((TimeSpan?)null);
+                };
             });
 
         // Register API clients
