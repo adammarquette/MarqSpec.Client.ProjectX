@@ -718,7 +718,7 @@ Thrown when API requests fail. Includes:
 
 ## License
 
-Proprietary - Marquette Speculations
+MIT License — Copyright (c) 2026 Adam Marquette. See [LICENSE](../LICENSE) for details.
 
 ## Support
 
