@@ -75,6 +75,6 @@ Contributing
 - Ensure unit coverage and run integration tests where applicable
 
 License and support
-- Proprietary — Marquette Speculations
+- MIT License — Copyright (c) 2026 Adam Marquette. See [LICENSE](LICENSE) for details.
 - For issues and questions, contact the development team (refer to repo issues)
 
