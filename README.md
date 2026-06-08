@@ -75,6 +75,8 @@ Contributing
 - Ensure unit coverage and run integration tests where applicable
 
 License and support
+
 - MIT
+
 - For issues and questions, contact the development team (refer to repo issues)
 
