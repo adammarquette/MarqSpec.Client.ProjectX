@@ -589,16 +589,25 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         {
             foreach (var update in updates)
             {
-                _logger.LogTrace("Received DOM update type: {Type} at price: {Price}", update.Type, update.Price);
-                OrderBookUpdateReceived?.Invoke(this, update);
+                if (update != null)
+                {
+                    _logger.LogTrace("Received DOM update type: {Type} at price: {Price}", update.Type, update.Price);
+                    OrderBookUpdateReceived?.Invoke(this, update);
+                }
             }
         });
 
-        // Trade updates — server sends (contractId, data)
-        connection.On<string, TradeUpdate>("GatewayTrade", (contractId, update) =>
+        // Trade updates — server sends (contractId, data[])
+        connection.On<string, TradeUpdate[]>("GatewayTrade", (contractId, updates) =>
         {
-            _logger.LogTrace("Received trade update for symbol: {SymbolId}", update.SymbolId);
-            TradeUpdateReceived?.Invoke(this, update);
+            foreach (var update in updates)
+            {
+                if (update != null)
+                {
+                    _logger.LogTrace("Received trade update for symbol: {SymbolId}", update.SymbolId);
+                    TradeUpdateReceived?.Invoke(this, update);
+                }
+            }
         });
 
         // Connection lifecycle

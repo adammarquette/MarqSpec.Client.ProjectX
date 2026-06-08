@@ -30,6 +30,7 @@
       <File Path="docs/WEBSOCKET_API_REFERENCE.md" />
       <File Path="docs/WEBSOCKET_FIX_SUMMARY.md" />
     </Folder>
+    <File Path="README.md" />
   </Folder>
   <Project Path="MarqSpec.Client.ProjectX.Diagnostics/MarqSpec.Client.ProjectX.Diagnostics.csproj" />
   <Project Path="MarqSpec.Client.ProjectX.Samples/MarqSpec.Client.ProjectX.Samples.csproj" />
