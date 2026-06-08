@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using MarqSpec.Client.ProjectX.Configuration;
 using MarqSpec.Client.ProjectX.Exceptions;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace MarqSpec.Client.ProjectX.Authentication;
@@ -92,21 +93,37 @@ public class AuthenticationService : IAuthenticationService
             };
 
             var response = await _httpClient.PostAsJsonAsync("/api/Auth/loginKey", request, cancellationToken);
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError("Authentication failed with status code {StatusCode}. Error: {Error}", 
-                    response.StatusCode, errorContent);
-                throw new AuthenticationException($"Authentication failed with status code {response.StatusCode}. Please verify your API credentials.");
+                _logger.LogError("Authentication failed with status code {StatusCode}. Body: {Body}",
+                    response.StatusCode, responseBody);
+                throw new AuthenticationException($"Authentication failed with status code {(int)response.StatusCode} ({response.StatusCode}). Please verify your API credentials.");
             }
 
-            var authResponse = await response.Content.ReadFromJsonAsync<AuthenticationResponse>(cancellationToken);
-
-            if (authResponse == null || !authResponse.Success || string.IsNullOrEmpty(authResponse.Token))
+            AuthenticationResponse? authResponse;
+            try
             {
-                var errorMsg = authResponse?.ErrorMessage ?? "Unknown error";
-                throw new AuthenticationException($"Authentication failed: {errorMsg}");
+                authResponse = JsonSerializer.Deserialize<AuthenticationResponse>(responseBody);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Failed to parse authentication response. Body: {Body}", responseBody);
+                throw new AuthenticationException("Authentication failed: the server returned a response that could not be parsed.", ex);
+            }
+
+            if (authResponse == null)
+            {
+                _logger.LogError("Authentication response was empty. Body: {Body}", responseBody);
+                throw new AuthenticationException("Authentication failed: the server returned an empty response.");
+            }
+
+            if (!authResponse.Success || string.IsNullOrEmpty(authResponse.Token))
+            {
+                var reason = DescribeLoginFailure(authResponse);
+                _logger.LogError("Authentication rejected by server: {Reason}", reason);
+                throw new AuthenticationException($"Authentication failed: {reason}");
             }
 
             _accessToken = authResponse.Token;
@@ -129,6 +146,38 @@ public class AuthenticationService : IAuthenticationService
             _logger.LogError(ex, "Unexpected error occurred during authentication");
             throw new AuthenticationException("Unexpected error occurred during authentication.", ex);
         }
+    }
+
+    /// <summary>
+    /// Builds a human-readable description of a failed login response, surfacing the
+    /// <c>errorCode</c> returned by the API (the <c>errorMessage</c> field is frequently null).
+    /// </summary>
+    private static string DescribeLoginFailure(AuthenticationResponse response)
+    {
+        var code = (LoginErrorCode)response.ErrorCode;
+        var codeName = Enum.IsDefined(typeof(LoginErrorCode), code)
+            ? code.ToString()
+            : $"Unrecognized({response.ErrorCode})";
+
+        var detail = code switch
+        {
+            LoginErrorCode.UserNotFound => "the user name was not found",
+            LoginErrorCode.PasswordVerificationFailed => "password verification failed",
+            LoginErrorCode.InvalidCredentials => "the API key or user name is invalid or has been revoked",
+            LoginErrorCode.AgreementsNotSigned => "required account agreements have not been signed",
+            LoginErrorCode.ApiSubscriptionNotFound => "no active API subscription was found for this account",
+            LoginErrorCode.ApiKeyAuthenticationDisabled => "API key authentication is disabled for this account",
+            LoginErrorCode.Success => "the server reported success but returned no token",
+            _ => "the server rejected the credentials"
+        };
+
+        var message = $"{detail} (errorCode {response.ErrorCode}: {codeName})";
+        if (!string.IsNullOrWhiteSpace(response.ErrorMessage))
+        {
+            message += $" - {response.ErrorMessage}";
+        }
+
+        return message;
     }
 
     /// <inheritdoc/>
@@ -238,10 +287,10 @@ public class AuthenticationService : IAuthenticationService
 
     private class AuthenticationRequest
     {
-        [JsonPropertyName("username")]
+        [JsonPropertyName("userName")]
         public string Username { get; set; } = string.Empty;
 
-        [JsonPropertyName("apikey")]
+        [JsonPropertyName("apiKey")]
         public string ApiKey { get; set; } = string.Empty;
     }
 
@@ -286,4 +335,44 @@ public class AuthenticationService : IAuthenticationService
         [JsonPropertyName("errorMessage")]
         public string? ErrorMessage { get; set; }
     }
+}
+
+/// <summary>
+/// Error codes returned by the ProjectX <c>/api/Auth/loginKey</c> endpoint.
+/// Mirrors the <c>LoginErrorCode</c> definition in the API's Swagger contract.
+/// </summary>
+public enum LoginErrorCode
+{
+    /// <summary>Authentication succeeded.</summary>
+    Success = 0,
+
+    /// <summary>The user name was not found.</summary>
+    UserNotFound = 1,
+
+    /// <summary>Password verification failed.</summary>
+    PasswordVerificationFailed = 2,
+
+    /// <summary>The supplied credentials are invalid or have been revoked.</summary>
+    InvalidCredentials = 3,
+
+    /// <summary>The application was not found.</summary>
+    AppNotFound = 4,
+
+    /// <summary>Application verification failed.</summary>
+    AppVerificationFailed = 5,
+
+    /// <summary>The device is not valid for this session.</summary>
+    InvalidDevice = 6,
+
+    /// <summary>Required account agreements have not been signed.</summary>
+    AgreementsNotSigned = 7,
+
+    /// <summary>An unknown error occurred.</summary>
+    UnknownError = 8,
+
+    /// <summary>No active API subscription was found for the account.</summary>
+    ApiSubscriptionNotFound = 9,
+
+    /// <summary>API key authentication is disabled for the account.</summary>
+    ApiKeyAuthenticationDisabled = 10,
 }
