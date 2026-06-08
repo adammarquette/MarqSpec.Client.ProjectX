@@ -577,17 +577,22 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
 
     private void ConfigureMarketHubHandlers(HubConnection connection)
     {
-        // Price/Quote updates — server sends (contractId, data)
+        // Price/Quote updates - server sends (contractId, data)
         connection.On<string, PriceUpdate>("GatewayQuote", (contractId, update) =>
         {
+            if (update == null)
+            {
+                return;
+            }
+
             _logger.LogTrace("Received price update for symbol: {Symbol}", update.Symbol);
             PriceUpdateReceived?.Invoke(this, update);
         });
 
-        // Order book/Depth updates — server sends (contractId, data[])
+        // Order book/Depth updates - server sends (contractId, data[])
         connection.On<string, OrderBookUpdate[]>("GatewayDepth", (contractId, updates) =>
         {
-            foreach (var update in updates)
+            foreach (var update in updates ?? [])
             {
                 if (update != null)
                 {
@@ -597,10 +602,10 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
             }
         });
 
-        // Trade updates — server sends (contractId, data[])
+        // Trade updates - server sends (contractId, data[])
         connection.On<string, TradeUpdate[]>("GatewayTrade", (contractId, updates) =>
         {
-            foreach (var update in updates)
+            foreach (var update in updates ?? [])
             {
                 if (update != null)
                 {

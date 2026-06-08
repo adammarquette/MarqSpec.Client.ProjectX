@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `BuildHubConnection` logger was always falling back to `NullLoggerProvider` because `ILogger<T>` never implements `ILoggerProvider`
 - WebSocket connections used a captured access token that became stale after token refresh or expiry
+- `GatewayTrade` market hub handler now deserializes the server payload as an array (`TradeUpdate[]`) instead of a single object, matching the gateway contract; previously trade events failed to bind and were silently dropped
+- Market hub array handlers (`GatewayDepth`, `GatewayTrade`) now guard against a null payload array, and `GatewayQuote` guards against a null update, preventing `NullReferenceException` on malformed messages
 
 ### Security
 - Removed hardcoded API credentials from `appsettings.integration.json`
