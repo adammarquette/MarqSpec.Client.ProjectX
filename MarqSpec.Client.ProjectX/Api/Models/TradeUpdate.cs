@@ -3,21 +3,15 @@ using System.Text.Json.Serialization;
 namespace MarqSpec.Client.ProjectX.Api.Models;
 
 /// <summary>
-/// Represents a real-time trade update from the market data WebSocket stream.
+/// Represents a real-time market trade event from the <c>GatewayTrade</c> market hub event.
 /// </summary>
 public class TradeUpdate
 {
     /// <summary>
-    /// Gets or sets the contract identifier.
+    /// Gets or sets the symbol ID (e.g. "F.US.EP").
     /// </summary>
-    [JsonPropertyName("contractId")]
-    public string ContractId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the trade identifier.
-    /// </summary>
-    [JsonPropertyName("tradeId")]
-    public long TradeId { get; set; }
+    [JsonPropertyName("symbolId")]
+    public string SymbolId { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the trade price.
@@ -26,43 +20,31 @@ public class TradeUpdate
     public decimal Price { get; set; }
 
     /// <summary>
-    /// Gets or sets the trade quantity.
-    /// </summary>
-    [JsonPropertyName("quantity")]
-    public int Quantity { get; set; }
-
-    /// <summary>
-    /// Gets or sets the trade side (Buy or Sell).
-    /// </summary>
-    [JsonPropertyName("side")]
-    public TradeSide Side { get; set; }
-
-    /// <summary>
-    /// Gets or sets the timestamp of the trade.
+    /// Gets or sets the trade timestamp.
     /// </summary>
     [JsonPropertyName("timestamp")]
     public DateTime Timestamp { get; set; }
 
     /// <summary>
-    /// Gets or sets whether this trade was aggressive (taker).
+    /// Gets or sets the trade direction.
     /// </summary>
-    [JsonPropertyName("isAggressive")]
-    public bool IsAggressive { get; set; }
+    [JsonPropertyName("type")]
+    public TradeLogType Type { get; set; }
+
+    /// <summary>
+    /// Gets or sets the trade volume.
+    /// </summary>
+    [JsonPropertyName("volume")]
+    public decimal Volume { get; set; }
 }
 
 /// <summary>
-/// Represents the side of a trade.
+/// Represents the direction of a market trade log entry.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum TradeSide
+public enum TradeLogType
 {
-    /// <summary>
-    /// Buy side trade.
-    /// </summary>
-    Buy,
-
-    /// <summary>
-    /// Sell side trade.
-    /// </summary>
-    Sell
+    /// <summary>Buy-side trade.</summary>
+    Buy = 0,
+    /// <summary>Sell-side trade.</summary>
+    Sell = 1,
 }

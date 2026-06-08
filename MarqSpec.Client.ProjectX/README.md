@@ -87,6 +87,8 @@ builder.Services.AddProjectXApiClient(builder.Configuration);
 var app = builder.Build();
 ```
 
+> **DI lifetimes**: `IProjectXApiClient` is registered as **Scoped** and `IProjectXWebSocketClient` as **Singleton**. Inject `IProjectXWebSocketClient` into long-lived services only; avoid resolving it from a scoped context directly.
+
 ### 2. Use the Client
 
 ```csharp
@@ -193,11 +195,10 @@ public class MarketDataService : IAsyncDisposable
         // Register event handlers
         _wsClient.PriceUpdateReceived += (sender, update) =>
         {
-            _logger.LogInformation("{Contract} Last={Last} Bid={Bid}x{BidSz} Ask={Ask}x{AskSz} Vol={Vol}",
-                update.ContractId, update.LastPrice,
-                update.BidPrice, update.BidSize,
-                update.AskPrice, update.AskSize,
-                update.Volume);
+            _logger.LogInformation("{Symbol} Last={Last} Bid={Bid} Ask={Ask} Chg={Chg}% Vol={Vol}",
+                update.Symbol, update.LastPrice,
+                update.BestBid, update.BestAsk,
+                update.ChangePercent, update.Volume);
         };
 
         _wsClient.OrderBookUpdateReceived += (sender, update) =>
@@ -395,18 +396,19 @@ Automatic reconnection is enabled by default. When a connection drops, the clien
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `ContractId` | `string` | Contract identifier |
+| `Symbol` | `string` | Symbol ID (e.g. `"F.US.EP"`) |
+| `SymbolName` | `string?` | Friendly symbol name |
 | `LastPrice` | `decimal` | Last traded price |
-| `BidPrice` | `decimal` | Best bid price |
-| `AskPrice` | `decimal` | Best ask price |
-| `BidSize` | `int` | Bid quantity |
-| `AskSize` | `int` | Ask quantity |
-| `Volume` | `long` | Total volume traded |
-| `Timestamp` | `DateTime` | Update timestamp |
-| `OpenPrice` | `decimal?` | Opening price |
-| `HighPrice` | `decimal?` | High price |
-| `LowPrice` | `decimal?` | Low price |
-| `PreviousClose` | `decimal?` | Previous session close |
+| `BestBid` | `decimal` | Best bid price |
+| `BestAsk` | `decimal` | Best ask price |
+| `Change` | `decimal` | Price change since previous close |
+| `ChangePercent` | `decimal` | Percent change since previous close |
+| `Open` | `decimal` | Session opening price |
+| `High` | `decimal` | Session high price |
+| `Low` | `decimal` | Session low price |
+| `Volume` | `decimal` | Total volume traded this session |
+| `LastUpdated` | `DateTime` | Last updated timestamp |
+| `Timestamp` | `DateTime` | Quote timestamp |
 
 #### OrderBookUpdate
 
@@ -673,9 +675,9 @@ Thrown when API requests fail. Includes:
 - 1-minute buffer before token expiration
 
 ### Retry Policy with Polly
-- Automatic retry for transient failures (500+ errors)
-- Exponential backoff strategy
-- Rate limiting handling (429 responses)
+- Automatic retry for transient failures: `HttpRequestException`, HTTP 429 (Too Many Requests), and HTTP 500+ server errors
+- Exponential backoff strategy (configurable initial and max delay)
+- Retry-After header is honored on 429 responses (both delta-seconds and HTTP-date formats)
 - Configurable retry attempts and delays
 
 ### Logging
@@ -718,7 +720,7 @@ Thrown when API requests fail. Includes:
 
 ## License
 
-Proprietary - Marquette Speculations
+MIT
 
 ## Support
 

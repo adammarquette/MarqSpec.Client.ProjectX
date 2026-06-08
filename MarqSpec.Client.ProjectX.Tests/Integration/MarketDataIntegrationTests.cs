@@ -13,7 +13,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
 {
     #region Contract Search Tests
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task SearchContractsAsync_WithValidSearchText_ReturnsMatchingContracts()
     {
         // Skip if credentials not available
@@ -45,7 +46,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
         });
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task SearchContractsAsync_WithNullSearchText_ReturnsAllContracts()
     {
         // Skip if credentials not available
@@ -67,7 +69,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
         }
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task SearchContractsAsync_WithUnmatchedSearchText_ReturnsEmptyList()
     {
         // Skip if credentials not available
@@ -81,7 +84,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
         contracts.Should().BeEmpty("no contracts should match the search text");
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task SearchContractsAsync_ConcurrentCalls_AreThreadSafe()
     {
         // Skip if credentials not available
@@ -116,7 +120,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
 
     #region Get Contract Tests
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetContractAsync_WithValidContractId_ReturnsContract()
     {
         // Skip if credentials not available
@@ -143,7 +148,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
         contract.TickValue.Should().BeGreaterThan(0);
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetContractAsync_WithInvalidContractId_ReturnsNull()
     {
         // Skip if credentials not available
@@ -156,7 +162,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
         contract.Should().BeNull("contract should not exist");
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetContractAsync_CalledMultipleTimes_ReturnsSameData()
     {
         // Skip if credentials not available
@@ -189,7 +196,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
 
     #region Historical Bars Tests
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetHistoricalBarsAsync_WithValidParameters_ReturnsBars()
     {
         // Skip if credentials not available
@@ -244,7 +252,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
         timestamps.Should().BeInAscendingOrder();
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetHistoricalBarsAsync_WithDifferentTimeframes_ReturnsAppropriateData()
     {
         // Skip if credentials not available
@@ -285,7 +294,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
             "5-minute bars should have more data points than 1-hour bars");
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetHistoricalBarsAsync_WithLimitParameter_RespectsLimit()
     {
         // Skip if credentials not available
@@ -319,7 +329,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
         bars.Count().Should().BeLessThanOrEqualTo(limit, "API should respect the limit parameter");
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetHistoricalBarsAsync_WithInvalidContractId_ThrowsException()
     {
         // Skip if credentials not available
@@ -341,7 +352,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
             .WithMessage("*Failed to retrieve historical bars*");
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetHistoricalBarsAsync_WithStartTimeInFuture_ThrowsArgumentException()
     {
         // Skip if credentials not available
@@ -363,7 +375,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
             .WithMessage("*Start time cannot be in the future*");
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetHistoricalBarsAsync_WithEndTimeInFuture_ThrowsArgumentException()
     {
         // Skip if credentials not available
@@ -385,7 +398,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
             .WithMessage("*End time cannot be in the future*");
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetHistoricalBarsAsync_ConcurrentCalls_AreThreadSafe()
     {
         // Skip if credentials not available
@@ -432,7 +446,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
         }
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetHistoricalBarsAsync_PerformanceTest_MeetsRequirements()
     {
         // Skip if credentials not available
@@ -481,7 +496,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
 
     #region Data Validation Tests
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task ContractData_RemainsConsistent_AcrossSearchAndGet()
     {
         // Skip if credentials not available
@@ -507,7 +523,8 @@ public class MarketDataIntegrationTests : IntegrationTestBase
         contractFromGet.ActiveContract.Should().Be(contractFromSearch.ActiveContract);
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task HistoricalBars_HaveValidOHLCRelationships()
     {
         // Skip if credentials not available

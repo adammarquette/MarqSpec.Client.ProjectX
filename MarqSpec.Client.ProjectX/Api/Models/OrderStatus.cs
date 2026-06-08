@@ -5,48 +5,25 @@ namespace MarqSpec.Client.ProjectX.Api.Models;
 /// </summary>
 public enum OrderStatus
 {
-    /// <summary>
-    /// Unknown status.
-    /// </summary>
-    Unknown = 0,
+    /// <summary>No status.</summary>
+    None = 0,
 
-    /// <summary>
-    /// Order has been accepted by the system.
-    /// </summary>
-    Accepted = 1,
+    /// <summary>Order is open and working.</summary>
+    Open = 1,
 
-    /// <summary>
-    /// Order is pending execution.
-    /// </summary>
-    Pending = 2,
+    /// <summary>Order has been completely filled.</summary>
+    Filled = 2,
 
-    /// <summary>
-    /// Stop order has been triggered.
-    /// </summary>
-    Triggered = 3,
+    /// <summary>Order has been cancelled.</summary>
+    Cancelled = 3,
 
-    /// <summary>
-    /// Order has been partially filled.
-    /// </summary>
-    PartiallyFilled = 4,
+    /// <summary>Order has expired.</summary>
+    Expired = 4,
 
-    /// <summary>
-    /// Order has been completely filled.
-    /// </summary>
-    Filled = 5,
+    /// <summary>Order has been rejected.</summary>
+    Rejected = 5,
 
-    /// <summary>
-    /// Order has been cancelled.
-    /// </summary>
-    Cancelled = 6,
-
-    /// <summary>
-    /// Order has been rejected.
-    /// </summary>
-    Rejected = 7,
-
-    /// <summary>
-    /// Order has expired.
-    /// </summary>
-    Expired = 8
+    /// <summary>Order is pending submission.</summary>
+    Pending = 6,
 }
+

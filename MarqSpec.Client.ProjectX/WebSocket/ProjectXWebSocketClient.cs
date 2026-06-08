@@ -200,7 +200,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Subscribing to price updates for contract: {ContractId}", contractId);
-            await _marketHub!.InvokeAsync("SubscribeToPrices", new[] { contractId }, cancellationToken);
+            await _marketHub!.InvokeAsync("SubscribeContractQuotes", contractId, cancellationToken);
             _logger.LogInformation("Successfully subscribed to price updates for contract: {ContractId}", contractId);
         }
         catch (Exception ex)
@@ -224,7 +224,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Unsubscribing from price updates for contract: {ContractId}", contractId);
-            await _marketHub!.InvokeAsync("UnsubscribeFromPrices", new[] { contractId }, cancellationToken);
+            await _marketHub!.InvokeAsync("UnsubscribeContractQuotes", contractId, cancellationToken);
             _logger.LogInformation("Successfully unsubscribed from price updates for contract: {ContractId}", contractId);
         }
         catch (Exception ex)
@@ -248,7 +248,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Subscribing to order book updates for contract: {ContractId}", contractId);
-            await _marketHub!.InvokeAsync("SubscribeToDepth", new[] { contractId }, cancellationToken);
+            await _marketHub!.InvokeAsync("SubscribeContractMarketDepth", contractId, cancellationToken);
             _logger.LogInformation("Successfully subscribed to order book updates for contract: {ContractId}", contractId);
         }
         catch (Exception ex)
@@ -272,7 +272,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Unsubscribing from order book updates for contract: {ContractId}", contractId);
-            await _marketHub!.InvokeAsync("UnsubscribeFromDepth", new[] { contractId }, cancellationToken);
+            await _marketHub!.InvokeAsync("UnsubscribeContractMarketDepth", contractId, cancellationToken);
             _logger.LogInformation("Successfully unsubscribed from order book updates for contract: {ContractId}", contractId);
         }
         catch (Exception ex)
@@ -296,7 +296,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Subscribing to trade updates for contract: {ContractId}", contractId);
-            await _marketHub!.InvokeAsync("SubscribeToTrades", new[] { contractId }, cancellationToken);
+            await _marketHub!.InvokeAsync("SubscribeContractTrades", contractId, cancellationToken);
             _logger.LogInformation("Successfully subscribed to trade updates for contract: {ContractId}", contractId);
         }
         catch (Exception ex)
@@ -320,7 +320,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Unsubscribing from trade updates for contract: {ContractId}", contractId);
-            await _marketHub!.InvokeAsync("UnsubscribeFromTrades", new[] { contractId }, cancellationToken);
+            await _marketHub!.InvokeAsync("UnsubscribeContractTrades", contractId, cancellationToken);
             _logger.LogInformation("Successfully unsubscribed from trade updates for contract: {ContractId}", contractId);
         }
         catch (Exception ex)
@@ -361,13 +361,13 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Subscribing to order updates for account: {AccountId}", accountId);
-            await _userHub!.InvokeAsync("SubscribeToOrders", new[] { accountId }, cancellationToken);
+            await _userHub!.InvokeAsync("SubscribeOrders", accountId, cancellationToken);
             _logger.LogInformation("Successfully subscribed to order updates for account: {AccountId}", accountId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to subscribe to order updates for account: {AccountId}", accountId);
-            RaiseMessageSendFailed("User", "SubscribeToOrders", [accountId], ex);
+            RaiseMessageSendFailed("User", "SubscribeOrders", [accountId], ex);
             throw;
         }
     }
@@ -385,13 +385,147 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Unsubscribing from order updates for account: {AccountId}", accountId);
-            await _userHub!.InvokeAsync("UnsubscribeFromOrders", new[] { accountId }, cancellationToken);
+            await _userHub!.InvokeAsync("UnsubscribeOrders", accountId, cancellationToken);
             _logger.LogInformation("Successfully unsubscribed from order updates for account: {AccountId}", accountId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to unsubscribe from order updates for account: {AccountId}", accountId);
-            RaiseMessageSendFailed("User", "UnsubscribeFromOrders", [accountId], ex);
+            RaiseMessageSendFailed("User", "UnsubscribeOrders", [accountId], ex);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task SubscribeToAccountUpdatesAsync(CancellationToken cancellationToken = default)
+    {
+        EnsureUserHubConnected();
+
+        try
+        {
+            _logger.LogDebug("Subscribing to account updates");
+            await _userHub!.InvokeAsync("SubscribeAccounts", cancellationToken);
+            _logger.LogInformation("Successfully subscribed to account updates");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to subscribe to account updates");
+            RaiseMessageSendFailed("User", "SubscribeAccounts", [], ex);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task UnsubscribeFromAccountUpdatesAsync(CancellationToken cancellationToken = default)
+    {
+        EnsureUserHubConnected();
+
+        try
+        {
+            _logger.LogDebug("Unsubscribing from account updates");
+            await _userHub!.InvokeAsync("UnsubscribeAccounts", cancellationToken);
+            _logger.LogInformation("Successfully unsubscribed from account updates");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to unsubscribe from account updates");
+            RaiseMessageSendFailed("User", "UnsubscribeAccounts", [], ex);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task SubscribeToPositionUpdatesAsync(int accountId, CancellationToken cancellationToken = default)
+    {
+        if (accountId <= 0)
+        {
+            throw new ArgumentException("Account ID must be greater than zero.", nameof(accountId));
+        }
+
+        EnsureUserHubConnected();
+
+        try
+        {
+            _logger.LogDebug("Subscribing to position updates for account: {AccountId}", accountId);
+            await _userHub!.InvokeAsync("SubscribePositions", accountId, cancellationToken);
+            _logger.LogInformation("Successfully subscribed to position updates for account: {AccountId}", accountId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to subscribe to position updates for account: {AccountId}", accountId);
+            RaiseMessageSendFailed("User", "SubscribePositions", [accountId], ex);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task UnsubscribeFromPositionUpdatesAsync(int accountId, CancellationToken cancellationToken = default)
+    {
+        if (accountId <= 0)
+        {
+            throw new ArgumentException("Account ID must be greater than zero.", nameof(accountId));
+        }
+
+        EnsureUserHubConnected();
+
+        try
+        {
+            _logger.LogDebug("Unsubscribing from position updates for account: {AccountId}", accountId);
+            await _userHub!.InvokeAsync("UnsubscribePositions", accountId, cancellationToken);
+            _logger.LogInformation("Successfully unsubscribed from position updates for account: {AccountId}", accountId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to unsubscribe from position updates for account: {AccountId}", accountId);
+            RaiseMessageSendFailed("User", "UnsubscribePositions", [accountId], ex);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task SubscribeToTradeNotificationsAsync(int accountId, CancellationToken cancellationToken = default)
+    {
+        if (accountId <= 0)
+        {
+            throw new ArgumentException("Account ID must be greater than zero.", nameof(accountId));
+        }
+
+        EnsureUserHubConnected();
+
+        try
+        {
+            _logger.LogDebug("Subscribing to trade notifications for account: {AccountId}", accountId);
+            await _userHub!.InvokeAsync("SubscribeTrades", accountId, cancellationToken);
+            _logger.LogInformation("Successfully subscribed to trade notifications for account: {AccountId}", accountId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to subscribe to trade notifications for account: {AccountId}", accountId);
+            RaiseMessageSendFailed("User", "SubscribeTrades", [accountId], ex);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task UnsubscribeFromTradeNotificationsAsync(int accountId, CancellationToken cancellationToken = default)
+    {
+        if (accountId <= 0)
+        {
+            throw new ArgumentException("Account ID must be greater than zero.", nameof(accountId));
+        }
+
+        EnsureUserHubConnected();
+
+        try
+        {
+            _logger.LogDebug("Unsubscribing from trade notifications for account: {AccountId}", accountId);
+            await _userHub!.InvokeAsync("UnsubscribeTrades", accountId, cancellationToken);
+            _logger.LogInformation("Successfully unsubscribed from trade notifications for account: {AccountId}", accountId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to unsubscribe from trade notifications for account: {AccountId}", accountId);
+            RaiseMessageSendFailed("User", "UnsubscribeTrades", [accountId], ex);
             throw;
         }
     }
@@ -401,7 +535,16 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
     #region User Data Events
 
     /// <inheritdoc/>
+    public event EventHandler<AccountUpdate>? AccountUpdateReceived;
+
+    /// <inheritdoc/>
     public event EventHandler<OrderUpdate>? OrderUpdateReceived;
+
+    /// <inheritdoc/>
+    public event EventHandler<PositionUpdate>? PositionUpdateReceived;
+
+    /// <inheritdoc/>
+    public event EventHandler<TradeNotification>? TradeNotificationReceived;
 
     #endregion
 
@@ -434,24 +577,27 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
 
     private void ConfigureMarketHubHandlers(HubConnection connection)
     {
-        // Price/Quote updates
-        connection.On<PriceUpdate>("Quote", update =>
+        // Price/Quote updates — server sends (contractId, data)
+        connection.On<string, PriceUpdate>("GatewayQuote", (contractId, update) =>
         {
-            _logger.LogTrace("Received price update for contract: {ContractId}", update.ContractId);
+            _logger.LogTrace("Received price update for symbol: {Symbol}", update.Symbol);
             PriceUpdateReceived?.Invoke(this, update);
         });
 
-        // Order book/Depth updates
-        connection.On<OrderBookUpdate>("Depth", update =>
+        // Order book/Depth updates — server sends (contractId, data[])
+        connection.On<string, OrderBookUpdate[]>("GatewayDepth", (contractId, updates) =>
         {
-            _logger.LogTrace("Received order book update for contract: {ContractId}", update.ContractId);
-            OrderBookUpdateReceived?.Invoke(this, update);
+            foreach (var update in updates)
+            {
+                _logger.LogTrace("Received DOM update type: {Type} at price: {Price}", update.Type, update.Price);
+                OrderBookUpdateReceived?.Invoke(this, update);
+            }
         });
 
-        // Trade updates
-        connection.On<TradeUpdate>("Trade", update =>
+        // Trade updates — server sends (contractId, data)
+        connection.On<string, TradeUpdate>("GatewayTrade", (contractId, update) =>
         {
-            _logger.LogTrace("Received trade update for contract: {ContractId}", update.ContractId);
+            _logger.LogTrace("Received trade update for symbol: {SymbolId}", update.SymbolId);
             TradeUpdateReceived?.Invoke(this, update);
         });
 
@@ -484,12 +630,35 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
 
     private void ConfigureUserHubHandlers(HubConnection connection)
     {
-        // Order updates
-        connection.On<OrderUpdate>("Order", update =>
+        // Account updates
+        connection.On<AccountUpdate>("GatewayUserAccount", update =>
         {
-            _logger.LogTrace("Received order update for order: {OrderId}, Account: {AccountId}", 
-                update.OrderId, update.AccountId);
+            _logger.LogTrace("Received account update for account: {AccountId}", update.Id);
+            AccountUpdateReceived?.Invoke(this, update);
+        });
+
+        // Order updates
+        connection.On<OrderUpdate>("GatewayUserOrder", update =>
+        {
+            _logger.LogTrace("Received order update for order: {OrderId}, Account: {AccountId}",
+                update.Id, update.AccountId);
             OrderUpdateReceived?.Invoke(this, update);
+        });
+
+        // Position updates
+        connection.On<PositionUpdate>("GatewayUserPosition", update =>
+        {
+            _logger.LogTrace("Received position update for account: {AccountId}, Contract: {ContractId}",
+                update.AccountId, update.ContractId);
+            PositionUpdateReceived?.Invoke(this, update);
+        });
+
+        // Trade notifications
+        connection.On<TradeNotification>("GatewayUserTrade", update =>
+        {
+            _logger.LogTrace("Received trade notification for account: {AccountId}, Order: {OrderId}",
+                update.AccountId, update.OrderId);
+            TradeNotificationReceived?.Invoke(this, update);
         });
 
         // Connection lifecycle

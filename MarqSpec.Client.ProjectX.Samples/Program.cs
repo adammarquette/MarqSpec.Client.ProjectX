@@ -101,20 +101,20 @@ public class Program
         try
         {
             // Search for NQ contracts first (E-mini NASDAQ)
-            contracts = await _apiClient!.SearchContractsAsync("NQ", live: true);
+            contracts = await _apiClient!.SearchContractsAsync("NQ", live: false);
 
             // If no NQ contracts, try ES (E-mini S&P 500)
             if (!contracts.Any())
             {
                 Console.WriteLine("  No NQ contracts found, trying ES...");
-                contracts = await _apiClient.SearchContractsAsync("ES", live: true);
+                contracts = await _apiClient.SearchContractsAsync("ES", live: false);
             }
 
             // If still no contracts, try all live contracts
             if (!contracts.Any())
             {
                 Console.WriteLine("  No specific contracts found, trying all live...");
-                contracts = await _apiClient.SearchContractsAsync(null, live: true);
+                contracts = await _apiClient.SearchContractsAsync(null, live: false);
             }
 
             if (!contracts.Any())
@@ -266,16 +266,16 @@ public class Program
     private static void OnPriceUpdateReceived(object? sender, Api.Models.PriceUpdate update)
     {
         _priceUpdateCount++;
-        
+
         // Show first few updates in detail
         if (_priceUpdateCount <= 3)
         {
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"\n[{update.Timestamp:HH:mm:ss}] Price Update: {update.ContractId}");
+            Console.WriteLine($"\n[{update.Timestamp:HH:mm:ss}] Price Update: {update.Symbol}");
             Console.ResetColor();
             Console.WriteLine($"  Last:   {update.LastPrice:F2}");
-            Console.WriteLine($"  Bid:    {update.BidPrice:F2} x {update.BidSize}");
-            Console.WriteLine($"  Ask:    {update.AskPrice:F2} x {update.AskSize}");
+            Console.WriteLine($"  Bid:    {update.BestBid:F2}");
+            Console.WriteLine($"  Ask:    {update.BestAsk:F2}");
             Console.WriteLine($"  Volume: {update.Volume:N0}");
         }
     }
@@ -283,44 +283,31 @@ public class Program
     private static void OnOrderBookUpdateReceived(object? sender, Api.Models.OrderBookUpdate update)
     {
         _orderBookUpdateCount++;
-        
+
         // Show first few updates in detail
         if (_orderBookUpdateCount <= 3)
         {
             Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"\n[{update.Timestamp:HH:mm:ss}] Order Book Update: {update.ContractId}");
+            Console.WriteLine($"\n[{update.Timestamp:HH:mm:ss}] DOM Update: {update.Type} @ {update.Price:F2}");
             Console.ResetColor();
-            Console.WriteLine($"  Bids: {update.Bids.Count} levels");
-            if (update.Bids.Any())
-            {
-                var bestBid = update.Bids[0];
-                Console.WriteLine($"    Best: {bestBid.Price:F2} x {bestBid.Quantity}");
-            }
-            Console.WriteLine($"  Asks: {update.Asks.Count} levels");
-            if (update.Asks.Any())
-            {
-                var bestAsk = update.Asks[0];
-                Console.WriteLine($"    Best: {bestAsk.Price:F2} x {bestAsk.Quantity}");
-            }
-            Console.WriteLine($"  Sequence: {update.SequenceNumber}");
+            Console.WriteLine($"  Volume: {update.Volume}");
+            Console.WriteLine($"  Current Volume: {update.CurrentVolume}");
         }
     }
 
     private static void OnTradeUpdateReceived(object? sender, Api.Models.TradeUpdate update)
     {
         _tradeUpdateCount++;
-        
+
         // Show first few updates in detail
         if (_tradeUpdateCount <= 3)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"\n[{update.Timestamp:HH:mm:ss}] Trade Update: {update.ContractId}");
+            Console.WriteLine($"\n[{update.Timestamp:HH:mm:ss}] Trade Update: {update.SymbolId}");
             Console.ResetColor();
-            Console.WriteLine($"  Trade ID:  {update.TradeId}");
             Console.WriteLine($"  Price:     {update.Price:F2}");
-            Console.WriteLine($"  Quantity:  {update.Quantity}");
-            Console.WriteLine($"  Side:      {update.Side}");
-            Console.WriteLine($"  Aggressive: {update.IsAggressive}");
+            Console.WriteLine($"  Volume:    {update.Volume}");
+            Console.WriteLine($"  Type:      {update.Type}");
         }
     }
 

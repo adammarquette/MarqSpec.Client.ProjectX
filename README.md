@@ -9,8 +9,9 @@ This repository contains:
 - [`MarqSpec.Client.ProjectX.Tests/`](MarqSpec.Client.ProjectX.Tests/) — Unit and integration tests.
 - `PRD.md` — Product Requirements Document (kept at solution root).
 
-Supported target framework
-- .NET 10 (C# 14)
+Supported target frameworks
+- .NET 8.0
+- .NET 10.0 (C# 14)
 
 Quick start — consumers
 1. Add the package to your project (when published):
@@ -67,7 +68,6 @@ dotnet test --filter "Category=Integration"
 
 Documentation and references
 - Primary library README: `MarqSpec.Client.ProjectX/README.md`
-- Detailed docs and summaries: `docs/README.md` (index)
 - Solution-level documentation appears under Solution Items → Summary in Visual Studio
 
 Contributing
@@ -75,6 +75,8 @@ Contributing
 - Ensure unit coverage and run integration tests where applicable
 
 License and support
-- MIT License — Copyright (c) 2026 Adam Marquette. See [LICENSE](LICENSE) for details.
+
+- MIT
+
 - For issues and questions, contact the development team (refer to repo issues)
 
