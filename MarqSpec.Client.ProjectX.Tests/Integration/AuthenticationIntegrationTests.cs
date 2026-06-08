@@ -12,7 +12,8 @@ namespace MarqSpec.Client.ProjectX.Tests.Integration;
 [Trait("Category", "Integration")]
 public class AuthenticationIntegrationTests : IntegrationTestBase
 {
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetAccessTokenAsync_WithValidCredentials_ReturnsToken()
     {
         // Arrange
@@ -27,7 +28,8 @@ public class AuthenticationIntegrationTests : IntegrationTestBase
             "token should be a valid JWT format");
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task GetAccessTokenAsync_CalledMultipleTimes_CachesToken()
     {
         // Arrange
@@ -44,7 +46,8 @@ public class AuthenticationIntegrationTests : IntegrationTestBase
         token1.Should().NotBeNullOrEmpty();
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task RefreshTokenAsync_UpdatesToken()
     {
         // Arrange
@@ -62,7 +65,8 @@ public class AuthenticationIntegrationTests : IntegrationTestBase
         // Just verify we can get a token after refresh
     }
 
-    [Fact(Skip = "Requires live API credentials in environment variables")]
+    //[Fact(Skip = "Requires live API credentials in environment variables")]
+    [Fact]
     public async Task ConcurrentAuthentication_HandlesMultipleRequests()
     {
         // Arrange

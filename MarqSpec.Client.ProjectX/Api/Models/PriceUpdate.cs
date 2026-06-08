@@ -3,15 +3,21 @@ using System.Text.Json.Serialization;
 namespace MarqSpec.Client.ProjectX.Api.Models;
 
 /// <summary>
-/// Represents a real-time price update from the market data WebSocket stream.
+/// Represents a real-time quote update from the <c>GatewayQuote</c> market hub event.
 /// </summary>
 public class PriceUpdate
 {
     /// <summary>
-    /// Gets or sets the contract identifier.
+    /// Gets or sets the symbol ID (e.g. "F.US.EP").
     /// </summary>
-    [JsonPropertyName("contractId")]
-    public string ContractId { get; set; } = string.Empty;
+    [JsonPropertyName("symbol")]
+    public string Symbol { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the friendly symbol name (currently unused by the server).
+    /// </summary>
+    [JsonPropertyName("symbolName")]
+    public string? SymbolName { get; set; }
 
     /// <summary>
     /// Gets or sets the last traded price.
@@ -20,62 +26,62 @@ public class PriceUpdate
     public decimal LastPrice { get; set; }
 
     /// <summary>
-    /// Gets or sets the bid price.
+    /// Gets or sets the current best bid price.
     /// </summary>
-    [JsonPropertyName("bidPrice")]
-    public decimal BidPrice { get; set; }
+    [JsonPropertyName("bestBid")]
+    public decimal BestBid { get; set; }
 
     /// <summary>
-    /// Gets or sets the ask price.
+    /// Gets or sets the current best ask price.
     /// </summary>
-    [JsonPropertyName("askPrice")]
-    public decimal AskPrice { get; set; }
+    [JsonPropertyName("bestAsk")]
+    public decimal BestAsk { get; set; }
 
     /// <summary>
-    /// Gets or sets the bid size (quantity).
+    /// Gets or sets the price change since previous close.
     /// </summary>
-    [JsonPropertyName("bidSize")]
-    public int BidSize { get; set; }
+    [JsonPropertyName("change")]
+    public decimal Change { get; set; }
 
     /// <summary>
-    /// Gets or sets the ask size (quantity).
+    /// Gets or sets the percent change since previous close.
     /// </summary>
-    [JsonPropertyName("askSize")]
-    public int AskSize { get; set; }
+    [JsonPropertyName("changePercent")]
+    public decimal ChangePercent { get; set; }
 
     /// <summary>
-    /// Gets or sets the volume traded.
+    /// Gets or sets the opening price for the session.
+    /// </summary>
+    [JsonPropertyName("open")]
+    public decimal Open { get; set; }
+
+    /// <summary>
+    /// Gets or sets the session high price.
+    /// </summary>
+    [JsonPropertyName("high")]
+    public decimal High { get; set; }
+
+    /// <summary>
+    /// Gets or sets the session low price.
+    /// </summary>
+    [JsonPropertyName("low")]
+    public decimal Low { get; set; }
+
+    /// <summary>
+    /// Gets or sets the total traded volume for the session.
     /// </summary>
     [JsonPropertyName("volume")]
-    public long Volume { get; set; }
+    public decimal Volume { get; set; }
 
     /// <summary>
-    /// Gets or sets the timestamp of the price update.
+    /// Gets or sets the last updated timestamp.
+    /// </summary>
+    [JsonPropertyName("lastUpdated")]
+    public DateTime LastUpdated { get; set; }
+
+    /// <summary>
+    /// Gets or sets the quote timestamp.
     /// </summary>
     [JsonPropertyName("timestamp")]
     public DateTime Timestamp { get; set; }
-
-    /// <summary>
-    /// Gets or sets the opening price.
-    /// </summary>
-    [JsonPropertyName("openPrice")]
-    public decimal? OpenPrice { get; set; }
-
-    /// <summary>
-    /// Gets or sets the high price.
-    /// </summary>
-    [JsonPropertyName("highPrice")]
-    public decimal? HighPrice { get; set; }
-
-    /// <summary>
-    /// Gets or sets the low price.
-    /// </summary>
-    [JsonPropertyName("lowPrice")]
-    public decimal? LowPrice { get; set; }
-
-    /// <summary>
-    /// Gets or sets the previous close price.
-    /// </summary>
-    [JsonPropertyName("previousClose")]
-    public decimal? PreviousClose { get; set; }
 }

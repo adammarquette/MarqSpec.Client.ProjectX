@@ -3,15 +3,15 @@ using System.Text.Json.Serialization;
 namespace MarqSpec.Client.ProjectX.Api.Models;
 
 /// <summary>
-/// Represents a real-time order update from the user WebSocket stream.
+/// Represents a real-time order update from the <c>GatewayUserOrder</c> user hub event.
 /// </summary>
 public class OrderUpdate
 {
     /// <summary>
     /// Gets or sets the order identifier.
     /// </summary>
-    [JsonPropertyName("orderId")]
-    public long OrderId { get; set; }
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
 
     /// <summary>
     /// Gets or sets the account identifier.
@@ -26,7 +26,25 @@ public class OrderUpdate
     public string ContractId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the order status.
+    /// Gets or sets the symbol identifier.
+    /// </summary>
+    [JsonPropertyName("symbolId")]
+    public string SymbolId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the timestamp when the order was created.
+    /// </summary>
+    [JsonPropertyName("creationTimestamp")]
+    public DateTime CreationTimestamp { get; set; }
+
+    /// <summary>
+    /// Gets or sets the timestamp when the order was last updated.
+    /// </summary>
+    [JsonPropertyName("updateTimestamp")]
+    public DateTime? UpdateTimestamp { get; set; }
+
+    /// <summary>
+    /// Gets or sets the current order status.
     /// </summary>
     [JsonPropertyName("status")]
     public OrderStatus Status { get; set; }
@@ -38,7 +56,7 @@ public class OrderUpdate
     public OrderType Type { get; set; }
 
     /// <summary>
-    /// Gets or sets the order side.
+    /// Gets or sets the order side (Bid/Ask).
     /// </summary>
     [JsonPropertyName("side")]
     public OrderSide Side { get; set; }
@@ -50,50 +68,32 @@ public class OrderUpdate
     public int Size { get; set; }
 
     /// <summary>
-    /// Gets or sets the filled quantity.
-    /// </summary>
-    [JsonPropertyName("filledQuantity")]
-    public int FilledQuantity { get; set; }
-
-    /// <summary>
-    /// Gets or sets the remaining quantity.
-    /// </summary>
-    [JsonPropertyName("remainingQuantity")]
-    public int RemainingQuantity { get; set; }
-
-    /// <summary>
-    /// Gets or sets the limit price (for limit orders).
+    /// Gets or sets the limit price, if applicable.
     /// </summary>
     [JsonPropertyName("limitPrice")]
     public decimal? LimitPrice { get; set; }
 
     /// <summary>
-    /// Gets or sets the stop price (for stop orders).
+    /// Gets or sets the stop price, if applicable.
     /// </summary>
     [JsonPropertyName("stopPrice")]
     public decimal? StopPrice { get; set; }
 
     /// <summary>
-    /// Gets or sets the average fill price.
+    /// Gets or sets the number of contracts filled.
     /// </summary>
-    [JsonPropertyName("averageFillPrice")]
-    public decimal? AverageFillPrice { get; set; }
+    [JsonPropertyName("fillVolume")]
+    public int FillVolume { get; set; }
 
     /// <summary>
-    /// Gets or sets the timestamp of the order update.
+    /// Gets or sets the price at which the order was filled, if any.
     /// </summary>
-    [JsonPropertyName("timestamp")]
-    public DateTime Timestamp { get; set; }
+    [JsonPropertyName("filledPrice")]
+    public decimal? FilledPrice { get; set; }
 
     /// <summary>
-    /// Gets or sets the update reason or message.
+    /// Gets or sets the custom tag associated with the order, if any.
     /// </summary>
-    [JsonPropertyName("message")]
-    public string? Message { get; set; }
-
-    /// <summary>
-    /// Gets or sets the rejection reason if the order was rejected.
-    /// </summary>
-    [JsonPropertyName("rejectionReason")]
-    public string? RejectionReason { get; set; }
+    [JsonPropertyName("customTag")]
+    public string? CustomTag { get; set; }
 }

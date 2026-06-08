@@ -133,11 +133,22 @@ public interface IProjectXWebSocketClient : IAsyncDisposable
     #region User Data Subscriptions
 
     /// <summary>
+    /// Subscribes to real-time account updates for the authenticated user.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task SubscribeToAccountUpdatesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Unsubscribes from real-time account updates.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task UnsubscribeFromAccountUpdatesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Subscribes to real-time order updates for the specified account.
     /// </summary>
     /// <param name="accountId">The account identifier to subscribe to.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
     Task SubscribeToOrderUpdatesAsync(int accountId, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -145,17 +156,51 @@ public interface IProjectXWebSocketClient : IAsyncDisposable
     /// </summary>
     /// <param name="accountId">The account identifier to unsubscribe from.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
     Task UnsubscribeFromOrderUpdatesAsync(int accountId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Subscribes to real-time position updates for the specified account.
+    /// </summary>
+    /// <param name="accountId">The account identifier to subscribe to.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task SubscribeToPositionUpdatesAsync(int accountId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Unsubscribes from real-time position updates for the specified account.
+    /// </summary>
+    /// <param name="accountId">The account identifier to unsubscribe from.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task UnsubscribeFromPositionUpdatesAsync(int accountId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Subscribes to real-time trade notifications for the specified account.
+    /// </summary>
+    /// <param name="accountId">The account identifier to subscribe to.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task SubscribeToTradeNotificationsAsync(int accountId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Unsubscribes from real-time trade notifications for the specified account.
+    /// </summary>
+    /// <param name="accountId">The account identifier to unsubscribe from.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task UnsubscribeFromTradeNotificationsAsync(int accountId, CancellationToken cancellationToken = default);
 
     #endregion
 
     #region User Data Events
 
-    /// <summary>
-    /// Occurs when an order update is received.
-    /// </summary>
+    /// <summary>Occurs when an account update is received via <c>GatewayUserAccount</c>.</summary>
+    event EventHandler<AccountUpdate>? AccountUpdateReceived;
+
+    /// <summary>Occurs when an order update is received via <c>GatewayUserOrder</c>.</summary>
     event EventHandler<OrderUpdate>? OrderUpdateReceived;
+
+    /// <summary>Occurs when a position update is received via <c>GatewayUserPosition</c>.</summary>
+    event EventHandler<PositionUpdate>? PositionUpdateReceived;
+
+    /// <summary>Occurs when a trade notification is received via <c>GatewayUserTrade</c>.</summary>
+    event EventHandler<TradeNotification>? TradeNotificationReceived;
 
     #endregion
 
