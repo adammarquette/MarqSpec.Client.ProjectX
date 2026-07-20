@@ -10,6 +10,7 @@ using MarqSpec.Client.ProjectX.Configuration;
 using MarqSpec.Client.ProjectX.WebSocket;
 using Refit;
 using System.Net;
+using System.Text.Json;
 
 namespace MarqSpec.Client.ProjectX.DependencyInjection;
 
@@ -18,6 +19,26 @@ namespace MarqSpec.Client.ProjectX.DependencyInjection;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// Serializer settings for the gateway.
+    /// </summary>
+    /// <remarks>
+    /// Refit's default writes enums as camelCase <b>strings</b> — an aggregate-bar unit went out as
+    /// <c>"unit":"minute"</c>. The gateway's schema types every enum as an <b>integer</b>
+    /// (<c>2 = Minute</c>) and rejects a string outright, so <c>retrieveBars</c> failed with
+    /// <c>400 "The JSON value could not be converted to AggregateBarUnit"</c> for every request.
+    /// <para>
+    /// <see cref="JsonSerializerDefaults.Web"/> without a string-enum converter writes and reads enums
+    /// numerically, which matches the schema in both directions — verified against the gateway's swagger:
+    /// every enum it defines is integer-typed, and none is a string.
+    /// </para>
+    /// </remarks>
+    private static readonly RefitSettings GatewaySettings = new()
+    {
+        ContentSerializer = new SystemTextJsonContentSerializer(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+    };
+
     /// <summary>
     /// Adds ProjectX API client services to the specified <see cref="IServiceCollection"/>.
     /// </summary>
@@ -58,7 +79,7 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<IAuthenticationService, AuthenticationService>();
 
         // Register Refit client with retry policy
-        services.AddRefitClient<IProjectXRestApi>()
+        services.AddRefitClient<IProjectXRestApi>(GatewaySettings)
             .ConfigureHttpClient((sp, client) =>
             {
                 var options = sp.GetRequiredService<IOptions<ProjectXOptions>>().Value;
