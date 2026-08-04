@@ -42,4 +42,10 @@
     <Folder Include="Api\Models\Types\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The gateway retry predicate (ShouldRetryOutcome / IsOrderPlacement) is internal but safety-critical
+         (gh#629 — a place must never be auto-retried), so its unit tests exercise the real methods. -->
+    <InternalsVisibleTo Include="MarqSpec.Client.ProjectX.Tests" />
+  </ItemGroup>
+
 </Project>
