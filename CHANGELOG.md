@@ -33,9 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Market hub array handlers (`GatewayDepth`, `GatewayTrade`) now guard against a null payload array, and `GatewayQuote` guards against a null update, preventing `NullReferenceException` on malformed messages
 - Authentication failures now surface the API's `errorCode` (e.g. `InvalidCredentials`, `ApiSubscriptionNotFound`, `ApiKeyAuthenticationDisabled`) instead of collapsing every failure to `Authentication failed: Unknown error`; the `loginKey` response carries the reason in `errorCode` while `errorMessage` is usually null
 - `loginKey` request now sends `userName`/`apiKey` matching the Swagger `LoginApiKeyRequest` schema (previously `username`/`apikey`)
+- The empty-response diagnostic in `AuthenticationService` never actually fired: `JsonSerializer.Deserialize` throws on an empty body before the `null`-check that was meant to catch it could run. The empty-body case is now detected before deserialization is attempted.
 
 ### Security
-- Removed hardcoded API credentials from `appsettings.integration.json`
+- Replaced a committed API key/secret with placeholder values in `appsettings.example.json`, `MarqSpec.Client.ProjectX.Diagnostics/appsettings.json`, and `MarqSpec.Client.ProjectX.Samples/appsettings.json` after rotating the exposed credential (corrects a prior entry here that misnamed the file as `appsettings.integration.json`, which never held a real credential; the original value remains in this public repo's initial-commit history — a rotation, not a history rewrite, is its remediation)
 - Stopped tracking `appsettings.json` in the Diagnostics and Samples projects and added them to `.gitignore`, so real credentials can no longer be committed there — each project's README documents the shape to place in a local (ignored) `appsettings.json`
 
 ## [1.0.2] - 2026-03-28

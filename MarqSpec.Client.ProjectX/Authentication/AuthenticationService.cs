@@ -102,6 +102,15 @@ public class AuthenticationService : IAuthenticationService
                 throw new AuthenticationException($"Authentication failed with status code {(int)response.StatusCode} ({response.StatusCode}). Please verify your API credentials.");
             }
 
+            if (string.IsNullOrEmpty(responseBody))
+            {
+                // Deserialize() throws JsonException on an empty string before it ever gets a chance to
+                // return null, so this case has to be caught here rather than via the authResponse == null
+                // check below -- that check alone never actually fires for a genuinely empty body.
+                _logger.LogError("Authentication response was empty.");
+                throw new AuthenticationException("Authentication failed: the server returned an empty response.");
+            }
+
             AuthenticationResponse? authResponse;
             try
             {
@@ -115,7 +124,9 @@ public class AuthenticationService : IAuthenticationService
 
             if (authResponse == null)
             {
-                _logger.LogError("Authentication response was empty. Body: {Body}", responseBody);
+                // Reachable for a literal JSON `null` body -- valid JSON, distinct from the empty-body case
+                // handled above, and JsonSerializer.Deserialize legitimately returns null for it.
+                _logger.LogError("Authentication response deserialized to null. Body: {Body}", responseBody);
                 throw new AuthenticationException("Authentication failed: the server returned an empty response.");
             }
 
