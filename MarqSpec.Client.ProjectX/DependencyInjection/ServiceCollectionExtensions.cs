@@ -1,16 +1,16 @@
+using System.Net;
+using System.Text.Json;
+using MarqSpec.Client.ProjectX.Api.Rest;
+using MarqSpec.Client.ProjectX.Authentication;
+using MarqSpec.Client.ProjectX.Configuration;
+using MarqSpec.Client.ProjectX.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
-using MarqSpec.Client.ProjectX.Api.Rest;
-using MarqSpec.Client.ProjectX.Authentication;
-using MarqSpec.Client.ProjectX.Configuration;
-using MarqSpec.Client.ProjectX.WebSocket;
 using Refit;
-using System.Net;
-using System.Text.Json;
 
 namespace MarqSpec.Client.ProjectX.DependencyInjection;
 
@@ -33,7 +33,7 @@ public static class ServiceCollectionExtensions
     /// every enum it defines is integer-typed, and none is a string.
     /// </para>
     /// </remarks>
-    private static readonly RefitSettings GatewaySettings = new()
+    private static readonly RefitSettings _gatewaySettings = new()
     {
         ContentSerializer = new SystemTextJsonContentSerializer(
             new JsonSerializerOptions(JsonSerializerDefaults.Web)),
@@ -79,7 +79,7 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<IAuthenticationService, AuthenticationService>();
 
         // Register Refit client with retry policy
-        services.AddRefitClient<IProjectXRestApi>(GatewaySettings)
+        services.AddRefitClient<IProjectXRestApi>(_gatewaySettings)
             .ConfigureHttpClient((sp, client) =>
             {
                 var options = sp.GetRequiredService<IOptions<ProjectXOptions>>().Value;

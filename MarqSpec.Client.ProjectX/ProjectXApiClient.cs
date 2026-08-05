@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Logging;
 using MarqSpec.Client.ProjectX.Api.Models;
 using MarqSpec.Client.ProjectX.Api.Rest;
 using MarqSpec.Client.ProjectX.Authentication;
 using MarqSpec.Client.ProjectX.Exceptions;
+using Microsoft.Extensions.Logging;
 using Refit;
 
 namespace MarqSpec.Client.ProjectX;
@@ -321,7 +321,7 @@ public class ProjectXApiClient : IProjectXApiClient
 
         try
         {
-            _logger.LogDebug("Placing order for contract: {ContractId}, Account: {AccountId}, Type: {Type}, Side: {Side}, Size: {Size}", 
+            _logger.LogDebug("Placing order for contract: {ContractId}, Account: {AccountId}, Type: {Type}, Side: {Side}, Size: {Size}",
                 request.ContractId, request.AccountId, request.Type, request.Side, request.Size);
 
             await EnsureAuthenticatedAsync(cancellationToken);
@@ -333,7 +333,7 @@ public class ProjectXApiClient : IProjectXApiClient
             }
             else
             {
-                _logger.LogWarning("Order placement failed. Error Code: {ErrorCode}, Message: {ErrorMessage}", 
+                _logger.LogWarning("Order placement failed. Error Code: {ErrorCode}, Message: {ErrorMessage}",
                     response.ErrorCode, response.ErrorMessage);
             }
 
@@ -387,7 +387,7 @@ public class ProjectXApiClient : IProjectXApiClient
             }
             else
             {
-                _logger.LogWarning("Order modification failed. Error Code: {ErrorCode}, Message: {ErrorMessage}", 
+                _logger.LogWarning("Order modification failed. Error Code: {ErrorCode}, Message: {ErrorMessage}",
                     response.ErrorCode, response.ErrorMessage);
             }
 
@@ -437,7 +437,7 @@ public class ProjectXApiClient : IProjectXApiClient
             }
             else
             {
-                _logger.LogWarning("Order cancellation failed. Error Code: {ErrorCode}, Message: {ErrorMessage}", 
+                _logger.LogWarning("Order cancellation failed. Error Code: {ErrorCode}, Message: {ErrorMessage}",
                     response.ErrorCode, response.ErrorMessage);
             }
 
@@ -521,7 +521,7 @@ public class ProjectXApiClient : IProjectXApiClient
 
         try
         {
-            _logger.LogDebug("Retrieving orders for account: {AccountId}, StartTime: {StartTime}, EndTime: {EndTime}", 
+            _logger.LogDebug("Retrieving orders for account: {AccountId}, StartTime: {StartTime}, EndTime: {EndTime}",
                 accountId, startTime, endTime);
 
             await EnsureAuthenticatedAsync(cancellationToken);
@@ -538,7 +538,7 @@ public class ProjectXApiClient : IProjectXApiClient
                 throw new ProjectXApiException($"Failed to retrieve orders: {response.ErrorMessage}", response.ErrorCode);
             }
 
-            _logger.LogInformation("Successfully retrieved {Count} orders for account: {AccountId}", 
+            _logger.LogInformation("Successfully retrieved {Count} orders for account: {AccountId}",
                 response.Orders.Count, accountId);
 
             return response.Orders;

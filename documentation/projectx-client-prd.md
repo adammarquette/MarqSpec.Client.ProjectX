@@ -128,7 +128,7 @@ consumer.
 - **R-12.1** One public class, struct or enum per file.
 - **R-12.2** SOLID; constructor injection; immutability by default.
 - **R-12.3** Money, prices and tick sizes are `decimal` — never `float` or `double`.
-- **R-12.4** Wire enums serialize as **integers**. The gateway rejects string enums; `GatewaySettings`
+- **R-12.4** Wire enums serialize as **integers**. The gateway rejects string enums; `_gatewaySettings`
   deliberately omits a string-enum converter.
 
 ## R-13 — Performance and stability

@@ -59,7 +59,7 @@ credential; do not reject a *permitted* one on judgement.
 
 - Multi-targets `net8.0;net10.0` — a change must compile clean under **both**, with warnings-as-errors.
 - `CancellationToken` on every public async method, threaded all the way down.
-- Enum serialization is **integers**, deliberately. `GatewaySettings` omits a string-enum converter because the
+- Enum serialization is **integers**, deliberately. `_gatewaySettings` omits a string-enum converter because the
   gateway rejects strings; restoring one re-breaks #14.
 - One public wire type per file under `Api/Models`, mirroring `swagger.json`.
 - Fluent LINQ, never query-comprehension syntax.

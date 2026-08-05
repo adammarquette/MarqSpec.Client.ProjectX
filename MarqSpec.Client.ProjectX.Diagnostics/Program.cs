@@ -1,9 +1,9 @@
+using System.Text.Json;
 using MarqSpec.Client.ProjectX;
 using MarqSpec.Client.ProjectX.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 
 namespace MarqSpec.Client.ProjectX.Diagnostics;
 
@@ -29,7 +29,7 @@ public class Program
         // Validate credentials
         var apiKey = configuration["ProjectX:ApiKey"];
         var apiSecret = configuration["ProjectX:ApiSecret"];
-        
+
         if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(apiSecret))
         {
             Console.ForegroundColor = ConsoleColor.Red;
@@ -63,13 +63,13 @@ public class Program
         {
             // Run all diagnostic tests
             await RunDiagnostics(client, logger);
-            
+
             Console.WriteLine("\n═══════════════════════════════════════════════════════════════");
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("✓ Diagnostic completed successfully!");
             Console.ResetColor();
             Console.WriteLine("═══════════════════════════════════════════════════════════════\n");
-            
+
             return 0;
         }
         catch (Exception ex)
@@ -79,14 +79,14 @@ public class Program
             Console.WriteLine("✗ Diagnostic failed with error:");
             Console.ResetColor();
             Console.WriteLine($"\n{ex.GetType().Name}: {ex.Message}");
-            
+
             if (ex.InnerException != null)
             {
                 Console.WriteLine($"\nInner Exception: {ex.InnerException.Message}");
             }
-            
+
             Console.WriteLine("\n═══════════════════════════════════════════════════════════════\n");
-            
+
             logger.LogError(ex, "Diagnostic failed");
             return 1;
         }
@@ -163,7 +163,7 @@ public class Program
         {
             Console.WriteLine($"\n✓ SUCCESS! Found {successfulTest.ContractCount} contracts in: {successfulTest.TestName}");
             Console.WriteLine("\nFirst 10 contracts:");
-            
+
             foreach (var contract in successfulTest.Contracts.Take(10))
             {
                 Console.WriteLine($"  • ID: {contract.Id,-20} Symbol: {contract.SymbolId,-10} Name: {contract.Name}");
@@ -174,11 +174,11 @@ public class Program
             Console.WriteLine($"\n─────────────────────────────────────────────────────────────");
             Console.WriteLine($"Test 11: GetContractAsync with ID '{testContract.Id}'");
             Console.WriteLine($"─────────────────────────────────────────────────────────────");
-            
+
             try
             {
                 var retrieved = await client.GetContractAsync(testContract.Id);
-                
+
                 if (retrieved != null)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
@@ -230,7 +230,7 @@ public class Program
         Console.WriteLine("\n═══════════════════════════════════════════════════════════════");
         Console.WriteLine("Summary:");
         Console.WriteLine("═══════════════════════════════════════════════════════════════");
-        
+
         var totalTests = results.Count;
         var successfulTests = results.Count(r => r.Success);
         var testsWithContracts = results.Count(r => r.ContractCount > 0);
@@ -240,7 +240,7 @@ public class Program
         Console.WriteLine($"  Successful (no error): {successfulTests}");
         Console.WriteLine($"  Tests with contracts:  {testsWithContracts}");
         Console.WriteLine($"  Failed Tests:          {failedTests}");
-        
+
         if (testsWithContracts > 0)
         {
             Console.ForegroundColor = ConsoleColor.Green;
@@ -262,7 +262,7 @@ public class Program
     }
 
     private static async Task<DiagnosticResult> RunTest(
-        string testName, 
+        string testName,
         Func<Task<IEnumerable<MarqSpec.Client.ProjectX.Api.Models.Contract>>> testFunc,
         ILogger logger)
     {
@@ -288,7 +288,7 @@ public class Program
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"✓ SUCCESS - Found {result.ContractCount} contracts ({result.DurationMs}ms)");
                 Console.ResetColor();
-                
+
                 Console.WriteLine("\nFirst 3 contracts:");
                 foreach (var contract in result.Contracts.Take(3))
                 {

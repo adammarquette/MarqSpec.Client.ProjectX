@@ -1,8 +1,8 @@
+using MarqSpec.Client.ProjectX.Configuration;
+using MarqSpec.Client.ProjectX.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using MarqSpec.Client.ProjectX.Configuration;
-using MarqSpec.Client.ProjectX.DependencyInjection;
 
 namespace MarqSpec.Client.ProjectX.Tests.Integration;
 

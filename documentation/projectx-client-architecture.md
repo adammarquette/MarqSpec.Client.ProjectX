@@ -19,7 +19,7 @@ IServiceCollection
 ├── Configure<ProjectXOptions>          section "ProjectX"
 ├── Configure<WebSocketOptions>         section "ProjectX:WebSocket"
 ├── AddHttpClient<IAuthenticationService, AuthenticationService>()      typed client
-├── AddRefitClient<IProjectXRestApi>(GatewaySettings)
+├── AddRefitClient<IProjectXRestApi>(_gatewaySettings)
 │     ├── ConfigureHttpClient          BaseAddress from ProjectXOptions.BaseUrl
 │     ├── AddHttpMessageHandler        AuthenticationHandler   (outer)
 │     └── AddStandardResilienceHandler retry / 429 / 5xx       (inner)
@@ -75,7 +75,7 @@ or unusable header falls through to exponential backoff.
 
 ### Serialization
 
-`GatewaySettings` uses `JsonSerializerDefaults.Web` **without** a string-enum converter, so enums travel as
+`_gatewaySettings` uses `JsonSerializerDefaults.Web` **without** a string-enum converter, so enums travel as
 integers. This is deliberate and was a bug fix: Refit's default writes enums as camelCase strings, the gateway's
 schema types every enum as an integer, and `retrieveBars` failed with
 `400 "The JSON value could not be converted to AggregateBarUnit"` on every request. Re-adding a

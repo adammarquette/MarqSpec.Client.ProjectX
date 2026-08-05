@@ -49,7 +49,7 @@ the XML, so a missing comment is a build error, not a style note.
 
 `Api/Models` is one public type per file, mirroring the gateway contract in `swagger.json`. When the contract and
 a model disagree, `swagger.json` wins and the model is the defect. Enum serialization is **integers, not
-strings** — the gateway rejects string enums, and `GatewaySettings` deliberately omits a string-enum converter.
+strings** — the gateway rejects string enums, and `_gatewaySettings` deliberately omits a string-enum converter.
 Do not "fix" that back.
 
 ## Dependencies

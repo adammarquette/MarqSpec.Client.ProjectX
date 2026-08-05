@@ -11,13 +11,13 @@ call, and a place to hang cross-cutting concerns — auth, retry, logging.
 ## Decision
 
 Declare the transport as a **Refit interface** (`IProjectXRestApi`) registered with
-`AddRefitClient<T>(GatewaySettings)`, and expose a hand-written facade (`IProjectXApiClient`) on top of it.
+`AddRefitClient<T>(_gatewaySettings)`, and expose a hand-written facade (`IProjectXApiClient`) on top of it.
 
 The facade exists so the public surface is not the wire surface: it can rename, combine, validate arguments, and
 translate gateway errors into `ProjectXApiException` without those concerns leaking into the generated
 interface.
 
-**`GatewaySettings` uses `JsonSerializerDefaults.Web` without a string-enum converter**, so enums serialize as
+**`_gatewaySettings` uses `JsonSerializerDefaults.Web` without a string-enum converter**, so enums serialize as
 integers.
 
 ## Alternatives considered
@@ -39,7 +39,7 @@ schema is integer-typed and it rejects strings, so `retrieveBars` failed with
 
 - Adding an endpoint is a method on the interface plus a facade method, and the models.
 - **Do not add a `JsonStringEnumConverter`.** It re-breaks every enum-carrying request. The rationale is
-  duplicated as an XML `<remarks>` on `GatewaySettings` because that is where someone about to "fix" it will be
+  duplicated as an XML `<remarks>` on `_gatewaySettings` because that is where someone about to "fix" it will be
   looking.
 - Refit's exception type is `ApiException`; the facade translates to `ProjectXApiException` so consumers do not
   take a Refit dependency to catch errors.
