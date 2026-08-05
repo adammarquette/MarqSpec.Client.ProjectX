@@ -112,6 +112,25 @@ public class AuthenticationServiceTests
     }
 
     [Fact]
+    public async Task GetAccessTokenAsync_WithEmptyResponseBody_ThrowsWithEmptyResponseMessage()
+    {
+        // Arrange: HTTP 200 with a genuinely empty body. Deserialize() throws JsonException on "" before
+        // it can ever return null, so this has to be diagnosed before deserialization is attempted -- a
+        // regression here previously fell through to "could not be parsed" instead.
+        var mockHandler = new MockHttpMessageHandler(HttpStatusCode.OK, responseBody: string.Empty);
+        var httpClient = new HttpClient(mockHandler);
+        var service = new AuthenticationService(_logger, Options.Create(_options), httpClient);
+
+        // Act
+        var act = async () => await service.GetAccessTokenAsync();
+
+        // Assert
+        var assertion = await act.Should().ThrowAsync<AuthenticationException>();
+        assertion.Which.Message.Should().Contain("empty response");
+        assertion.Which.Message.Should().NotContain("could not be parsed");
+    }
+
+    [Fact]
     public async Task GetAccessTokenAsync_WithNetworkError_ThrowsAuthenticationException()
     {
         // Arrange
@@ -192,6 +211,7 @@ public class AuthenticationServiceTests
     {
         private readonly HttpStatusCode _statusCode;
         private readonly object? _responseContent;
+        private readonly string? _rawResponseBody;
         private readonly Exception? _exception;
         private readonly Action? _onSend;
 
@@ -199,6 +219,14 @@ public class AuthenticationServiceTests
         {
             _statusCode = statusCode;
             _responseContent = responseContent;
+            _onSend = onSend;
+        }
+
+        /// <summary>Serves <paramref name="responseBody"/> verbatim (e.g. empty) rather than JSON-serializing it.</summary>
+        public MockHttpMessageHandler(HttpStatusCode statusCode, string responseBody, Action? onSend = null)
+        {
+            _statusCode = statusCode;
+            _rawResponseBody = responseBody;
             _onSend = onSend;
         }
 
@@ -217,7 +245,11 @@ public class AuthenticationServiceTests
             }
 
             var response = new HttpResponseMessage(_statusCode);
-            if (_responseContent != null)
+            if (_rawResponseBody != null)
+            {
+                response.Content = new StringContent(_rawResponseBody);
+            }
+            else if (_responseContent != null)
             {
                 response.Content = new StringContent(JsonSerializer.Serialize(_responseContent));
             }
