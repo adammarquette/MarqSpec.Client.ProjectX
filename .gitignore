@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Runtime app configuration may hold real ProjectX credentials — do not commit.
+# Each project's README shows the shape; copy it into a local (ignored) appsettings.json.
+MarqSpec.Client.ProjectX.Diagnostics/appsettings.json
+MarqSpec.Client.ProjectX.Samples/appsettings.json
