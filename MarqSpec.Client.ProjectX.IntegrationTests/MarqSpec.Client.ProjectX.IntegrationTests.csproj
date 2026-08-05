@@ -5,20 +5,15 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
 
-    <!--
-      Credentials for the live-gateway tier come from user secrets or the environment, never from a
-      tracked file. This is a public repository (R-9.3).
-    -->
-    <UserSecretsId>marqspec-client-projectx-tests</UserSecretsId>
+    <!-- Live-tier credentials come from user secrets or the environment, never a tracked file (R-9.3). -->
+    <UserSecretsId>marqspec-client-projectx-integrationtests</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" />
-    <PackageReference Include="FakeItEasy" />
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.Extensions.Configuration" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
@@ -32,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MarqSpec.Client.ProjectX\MarqSpec.Client.ProjectX.csproj" />
+    <ProjectReference Include="..\MarqSpec.Client.ProjectX.FakeGateway\MarqSpec.Client.ProjectX.FakeGateway.csproj" />
   </ItemGroup>
 
 </Project>
