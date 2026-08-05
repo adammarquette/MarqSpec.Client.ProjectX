@@ -132,18 +132,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check the closing reference
+        # Belt and braces on "never fails": no `set -e`, every fallible call defaulted, and an explicit exit 0
+        # at the end. This job failed on its very first run because it has no checkout, so `gh` could not infer
+        # the repository and the bare `set -euo pipefail` turned that into a red check on an advisory job.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           TITLE: ${{ github.event.pull_request.title }}
           BODY: ${{ github.event.pull_request.body }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
 
           # closingIssuesReferences is ground truth: it reflects what GitHub actually BOUND, which is not the
           # same as what the body appears to say. A backticked `Closes #N` does not bind, and a closing keyword
           # in the TITLE is ignored entirely.
-          closes=$(gh pr view "$PR" --json closingIssuesReferences --jq '.closingIssuesReferences | length')
+          closes=$(gh pr view "$PR" --json closingIssuesReferences --jq '.closingIssuesReferences | length' 2>/dev/null || echo "unknown")
+
+          if [ "$closes" = "unknown" ]; then
+            echo "::warning::Could not read the PR's closing references. Skipping the advisory check."
+            exit 0
+          fi
 
           if [ "$closes" -gt 0 ]; then
             echo "::notice::PR closes $closes issue(s)."
@@ -163,3 +173,4 @@ jobs:
           fi
 
           echo "::warning::This PR closes no issue. Issue-first: add a plain 'Closes #N' to the body."
+          exit 0
