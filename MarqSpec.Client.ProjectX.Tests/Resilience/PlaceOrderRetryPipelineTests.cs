@@ -1,10 +1,10 @@
+using System.Collections.Concurrent;
+using System.Net;
 using FluentAssertions;
 using MarqSpec.Client.ProjectX.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
 using Polly;
-using System.Collections.Concurrent;
-using System.Net;
 
 namespace MarqSpec.Client.ProjectX.Tests.Resilience;
 

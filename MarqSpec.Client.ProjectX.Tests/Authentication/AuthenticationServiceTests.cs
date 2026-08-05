@@ -1,12 +1,12 @@
+using System.Net;
+using System.Text.Json;
 using FakeItEasy;
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using MarqSpec.Client.ProjectX.Authentication;
 using MarqSpec.Client.ProjectX.Configuration;
 using MarqSpec.Client.ProjectX.Exceptions;
-using System.Net;
-using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace MarqSpec.Client.ProjectX.Tests.Authentication;
 

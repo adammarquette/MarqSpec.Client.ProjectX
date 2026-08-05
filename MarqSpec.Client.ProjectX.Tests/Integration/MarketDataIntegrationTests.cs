@@ -18,7 +18,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task SearchContractsAsync_WithValidSearchText_ReturnsMatchingContracts()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Act - Get all contracts first to see what's available
         var allContracts = await Client.SearchContractsAsync(null, live: true);
@@ -51,7 +54,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task SearchContractsAsync_WithNullSearchText_ReturnsAllContracts()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Act - Get all live contracts
         var contracts = await Client.SearchContractsAsync(null, live: true);
@@ -74,7 +80,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task SearchContractsAsync_WithUnmatchedSearchText_ReturnsEmptyList()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Act
         var contracts = await Client.SearchContractsAsync("NONEXISTENT_SYMBOL_12345", live: true);
@@ -89,7 +98,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task SearchContractsAsync_ConcurrentCalls_AreThreadSafe()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Act - Multiple concurrent search requests for all contracts
         var tasks = Enumerable.Range(0, 5)
@@ -125,7 +137,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task GetContractAsync_WithValidContractId_ReturnsContract()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Arrange - First search for a valid contract
         var contracts = await Client.SearchContractsAsync(null, live: true);
@@ -153,7 +168,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task GetContractAsync_WithInvalidContractId_ReturnsNull()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Act
         var contract = await Client.GetContractAsync("INVALID_CONTRACT_ID_12345");
@@ -167,7 +185,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task GetContractAsync_CalledMultipleTimes_ReturnsSameData()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Arrange - First search for a valid contract
         var contracts = await Client.SearchContractsAsync(null, live: true);
@@ -201,7 +222,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task GetHistoricalBarsAsync_WithValidParameters_ReturnsBars()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Arrange - Get a valid contract first
         var contracts = await Client.SearchContractsAsync(null, live: true);
@@ -237,11 +261,11 @@ public class MarketDataIntegrationTests : IntegrationTestBase
             bar.Low.Should().BeLessThanOrEqualTo(bar.Open);
             bar.Close.Should().BeGreaterThan(0);
             bar.Volume.Should().BeGreaterOrEqualTo(0);
-            
+
             // High should be >= all other prices
             bar.High.Should().BeGreaterThanOrEqualTo(bar.Low);
             bar.High.Should().BeGreaterThanOrEqualTo(bar.Close);
-            
+
             // Low should be <= all other prices
             bar.Low.Should().BeLessThanOrEqualTo(bar.High);
             bar.Low.Should().BeLessThanOrEqualTo(bar.Close);
@@ -257,7 +281,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task GetHistoricalBarsAsync_WithDifferentTimeframes_ReturnsAppropriateData()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Arrange - Get a valid contract first
         var contracts = await Client.SearchContractsAsync(null, live: true);
@@ -299,7 +326,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task GetHistoricalBarsAsync_WithLimitParameter_RespectsLimit()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Arrange - Get a valid contract first
         var contracts = await Client.SearchContractsAsync(null, live: true);
@@ -334,7 +364,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task GetHistoricalBarsAsync_WithInvalidContractId_ThrowsException()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Arrange
         var endTime = DateTime.UtcNow;
@@ -357,7 +390,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task GetHistoricalBarsAsync_WithStartTimeInFuture_ThrowsArgumentException()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Arrange
         var startTime = DateTime.UtcNow.AddDays(1);
@@ -380,7 +416,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task GetHistoricalBarsAsync_WithEndTimeInFuture_ThrowsArgumentException()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Arrange
         var startTime = DateTime.UtcNow.AddDays(-1);
@@ -403,7 +442,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task GetHistoricalBarsAsync_ConcurrentCalls_AreThreadSafe()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Arrange - Get a valid contract first
         var contracts = await Client.SearchContractsAsync(null, live: true);
@@ -451,7 +493,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task GetHistoricalBarsAsync_PerformanceTest_MeetsRequirements()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Arrange - Get a valid contract first
         var contracts = await Client.SearchContractsAsync(null, live: true);
@@ -501,7 +546,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task ContractData_RemainsConsistent_AcrossSearchAndGet()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Arrange & Act - Search for contracts
         var searchResults = await Client.SearchContractsAsync(null, live: true);
@@ -528,7 +576,10 @@ public class MarketDataIntegrationTests : IntegrationTestBase
     public async Task HistoricalBars_HaveValidOHLCRelationships()
     {
         // Skip if credentials not available
-        if (SkipReason != null) return;
+        if (SkipReason != null)
+        {
+            return;
+        }
 
         // Arrange - Get a valid contract first
         var contracts = await Client.SearchContractsAsync(null, live: true);

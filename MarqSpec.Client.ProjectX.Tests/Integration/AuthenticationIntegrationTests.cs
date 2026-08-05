@@ -1,7 +1,7 @@
 using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
 using MarqSpec.Client.ProjectX.Authentication;
 using MarqSpec.Client.ProjectX.Exceptions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MarqSpec.Client.ProjectX.Tests.Integration;
 
@@ -90,7 +90,7 @@ public class AuthenticationIntegrationTests : IntegrationTestBase
         // Note: This test requires manually setting invalid credentials
         // PROJECTX_API_KEY=invalid_key
         // PROJECTX_API_SECRET=invalid_secret
-        
+
         // Arrange
         var authService = ServiceProvider.GetRequiredService<IAuthenticationService>();
 

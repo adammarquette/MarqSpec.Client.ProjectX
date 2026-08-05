@@ -1,10 +1,10 @@
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using MarqSpec.Client.ProjectX.Configuration;
-using MarqSpec.Client.ProjectX.Exceptions;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MarqSpec.Client.ProjectX.Configuration;
+using MarqSpec.Client.ProjectX.Exceptions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace MarqSpec.Client.ProjectX.Authentication;
 
@@ -35,7 +35,7 @@ public class AuthenticationService : IAuthenticationService
         _options = options.Value;
         _httpClient = httpClient;
         _httpClient.BaseAddress = new Uri(_options.BaseUrl);
-        
+
         _options.Validate();
     }
 
