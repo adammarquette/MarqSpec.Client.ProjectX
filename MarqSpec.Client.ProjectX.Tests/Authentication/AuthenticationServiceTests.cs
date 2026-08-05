@@ -88,6 +88,30 @@ public class AuthenticationServiceTests
     }
 
     [Fact]
+    public async Task GetAccessTokenAsync_WhenServerReturnsErrorCodeWithoutMessage_SurfacesErrorCode()
+    {
+        // Arrange: server returns HTTP 200 but success=false with a populated
+        // errorCode and a null errorMessage (the documented ProjectX behaviour).
+        var mockHandler = new MockHttpMessageHandler(HttpStatusCode.OK, new
+        {
+            token = (string?)null,
+            success = false,
+            errorCode = 3, // LoginErrorCode.InvalidCredentials
+            errorMessage = (string?)null
+        });
+        var httpClient = new HttpClient(mockHandler);
+        var service = new AuthenticationService(_logger, Options.Create(_options), httpClient);
+
+        // Act
+        var act = async () => await service.GetAccessTokenAsync();
+
+        // Assert: the real reason must be surfaced, not collapsed to "Unknown error".
+        var assertion = await act.Should().ThrowAsync<AuthenticationException>();
+        assertion.Which.Message.Should().Contain("InvalidCredentials");
+        assertion.Which.Message.Should().NotContain("Unknown error");
+    }
+
+    [Fact]
     public async Task GetAccessTokenAsync_WithNetworkError_ThrowsAuthenticationException()
     {
         // Arrange

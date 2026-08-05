@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `MessageSendFailed` event on `IProjectXWebSocketClient` for reporting failed WebSocket message sends
 - `WebSocketMessageFailedEventArgs` event args class with `HubName`, `MethodName`, `Arguments`, `Exception`, and `Timestamp`
+- `LoginErrorCode` enum mirroring the API's `LoginErrorCode` contract, used to describe authentication failures
 - Unit tests for Retry-After header handling in Polly retry policy
 - Unit tests for `MessageSendFailed` event behavior
 - `[Trait("Category", "Integration")]` on all integration test classes for filtering
@@ -28,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `BuildHubConnection` logger was always falling back to `NullLoggerProvider` because `ILogger<T>` never implements `ILoggerProvider`
 - WebSocket connections used a captured access token that became stale after token refresh or expiry
+- `GatewayTrade` market hub handler now deserializes the server payload as an array (`TradeUpdate[]`) instead of a single object, matching the gateway contract; previously trade events failed to bind and were silently dropped
+- Market hub array handlers (`GatewayDepth`, `GatewayTrade`) now guard against a null payload array, and `GatewayQuote` guards against a null update, preventing `NullReferenceException` on malformed messages
+- Authentication failures now surface the API's `errorCode` (e.g. `InvalidCredentials`, `ApiSubscriptionNotFound`, `ApiKeyAuthenticationDisabled`) instead of collapsing every failure to `Authentication failed: Unknown error`; the `loginKey` response carries the reason in `errorCode` while `errorMessage` is usually null
+- `loginKey` request now sends `userName`/`apiKey` matching the Swagger `LoginApiKeyRequest` schema (previously `username`/`apikey`)
 
 ### Security
 - Removed hardcoded API credentials from `appsettings.integration.json`
