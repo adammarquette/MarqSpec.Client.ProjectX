@@ -134,26 +134,36 @@ jobs:
           name: unit-test-results
           path: ./TestResults
 
+      # Parsed with an XML parser rather than grep. The first draft grepped for line-rate and exited 2 on its
+      # first run: cobertura carries line-rate on <coverage>, <package> AND <class>, so "the first match" is
+      # both fragile and not obviously the root. Parsing the document says what it means.
       - name: Enforce the coverage floor
+        shell: python3 {0}
         run: |
-          set -euo pipefail
-          report=$(find ./TestResults -name 'coverage.cobertura.xml' | head -n1)
-          if [ -z "$report" ]; then
-            echo "::error::No cobertura report found. The unit test job must run with --collect:\"XPlat Code Coverage\"."
-            exit 1
-          fi
+          import glob, os, sys, xml.etree.ElementTree as ET
 
-          # line-rate is a 0..1 fraction on the root <coverage> element.
-          rate=$(grep -o 'line-rate="[0-9.]*"' "$report" | head -n1 | grep -o '[0-9.]*')
-          percent=$(awk -v r="$rate" 'BEGIN { printf "%d", r * 100 }')
+          floor = int(os.environ["MINIMUM_LINE_COVERAGE"])
+          reports = glob.glob("TestResults/**/coverage.cobertura.xml", recursive=True)
 
-          echo "Line coverage: ${percent}% (floor ${MINIMUM_LINE_COVERAGE}%)"
-          echo "### Line coverage: ${percent}% (floor ${MINIMUM_LINE_COVERAGE}%)" >> "$GITHUB_STEP_SUMMARY"
+          if not reports:
+              found = "\n".join(sorted(glob.glob("TestResults/**/*", recursive=True))[:40]) or "(nothing)"
+              print("::error::No cobertura report found. The unit test job must run with "
+                    '--collect:"XPlat Code Coverage".')
+              print(f"Artifact contained:\n{found}")
+              sys.exit(1)
 
-          if [ "$percent" -lt "$MINIMUM_LINE_COVERAGE" ]; then
-            echo "::error::Line coverage ${percent}% is below the ${MINIMUM_LINE_COVERAGE}% floor."
-            exit 1
-          fi
+          root = ET.parse(reports[0]).getroot()
+          line = float(root.get("line-rate", 0)) * 100
+          branch = float(root.get("branch-rate", 0)) * 100
+
+          summary = f"Line coverage {line:.1f}% (floor {floor}%) · branch {branch:.1f}%"
+          print(summary)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+              handle.write(f"### {summary}\n")
+
+          if line < floor:
+              print(f"::error::Line coverage {line:.1f}% is below the {floor}% floor.")
+              sys.exit(1)
 
   pack:
     name: pack
