@@ -45,16 +45,23 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddProjectXApiClient(builder.Configuration);
 ```
 
-Credentials bind from the `ProjectX` configuration section, or from the environment:
+Credentials bind from the `ProjectX` configuration section, from `dotnet user-secrets`, or from the
+environment. Either naming convention works (R-1.2):
 
 ```bash
-export PROJECTX_API_KEY=your-api-key
+export ProjectX__ApiKey=your-api-key          # ASP.NET convention — preferred
+export ProjectX__ApiSecret=your-api-secret
+
+export PROJECTX_API_KEY=your-api-key          # legacy flat form — still supported
 export PROJECTX_API_SECRET=your-api-secret
 ```
 
+**Never put a credential in a tracked file.** `appsettings.json` is gitignored repo-wide for that reason; only
+`*.example.json` templates are tracked.
+
 > **The option names are the gateway's, and they are misleading.** `ApiKey` is transmitted as the gateway's
-> `username` field and `ApiSecret` as its `apikey` field — see
-> [ADR-0003](documentation/adr/0003-jwt-acquisition-and-cache.md).
+> `userName` field and `ApiSecret` as its `apiKey` field — so the wire field called `apiKey` carries your
+> *secret*. See [ADR-0003](documentation/adr/0003-jwt-acquisition-and-cache.md).
 
 Two things to know before you use it in anger:
 

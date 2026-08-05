@@ -54,19 +54,8 @@ public static class ServiceCollectionExtensions
         {
             configuration.GetSection(ProjectXOptions.SectionName).Bind(options);
 
-            // Override with environment variables if present
-            var apiKey = Environment.GetEnvironmentVariable("PROJECTX_API_KEY");
-            var apiSecret = Environment.GetEnvironmentVariable("PROJECTX_API_SECRET");
-
-            if (!string.IsNullOrEmpty(apiKey))
-            {
-                options.ApiKey = apiKey;
-            }
-
-            if (!string.IsNullOrEmpty(apiSecret))
-            {
-                options.ApiSecret = apiSecret;
-            }
+            options.ApiKey = ResolveCredential("PROJECTX_API_KEY", "ProjectX__ApiKey", options.ApiKey);
+            options.ApiSecret = ResolveCredential("PROJECTX_API_SECRET", "ProjectX__ApiSecret", options.ApiSecret);
         });
 
         // Configure WebSocket options
@@ -126,6 +115,35 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IProjectXWebSocketClient, ProjectXWebSocketClient>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Resolves a credential from the environment, falling back to whatever configuration bound.
+    /// </summary>
+    /// <param name="legacyName">The flat form, e.g. <c>PROJECTX_API_KEY</c>.</param>
+    /// <param name="sectionScopedName">The ASP.NET double-underscore form, e.g. <c>ProjectX__ApiKey</c>.</param>
+    /// <param name="boundValue">The value <see cref="IConfiguration"/> already bound, used when neither is set.</param>
+    /// <remarks>
+    /// Both conventions are read directly rather than relying on the configuration pipeline, because
+    /// <see cref="AddProjectXApiClient"/> accepts an arbitrary <see cref="IConfiguration"/> — one built without
+    /// an environment-variable provider never sees either form. That was a live gap: <c>release.yml</c> sets
+    /// <c>ProjectX__ApiKey</c> / <c>ProjectX__ApiSecret</c>, and only the flat names were read, so the
+    /// workflow's credentials never reached the options (R-1.2).
+    /// <para>
+    /// The flat form wins when both are set, so adding the second convention cannot change what an existing
+    /// deployment resolves to.
+    /// </para>
+    /// </remarks>
+    private static string ResolveCredential(string legacyName, string sectionScopedName, string boundValue)
+    {
+        var legacy = Environment.GetEnvironmentVariable(legacyName);
+        if (!string.IsNullOrEmpty(legacy))
+        {
+            return legacy;
+        }
+
+        var sectionScoped = Environment.GetEnvironmentVariable(sectionScopedName);
+        return string.IsNullOrEmpty(sectionScoped) ? boundValue : sectionScoped;
     }
 
     /// <summary>

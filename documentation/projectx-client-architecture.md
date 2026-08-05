@@ -84,15 +84,19 @@ schema types every enum as an integer, and `retrieveBars` failed with
 ## Authentication
 
 ```
-POST /api/Auth/loginKey   { "username": <ApiKey>, "apikey": <ApiSecret> }   →   JWT
+POST /api/Auth/loginKey   { "userName": <ApiKey>, "apiKey": <ApiSecret> }   →   JWT
 POST /api/Auth/validate                                                     →   optional newToken
 POST /api/Auth/logout                                                       →   clears the cache
 ```
 
 **The field names are the gateway's, and they are misleading.** `ProjectXOptions.ApiKey` is transmitted as
-`username`; `ProjectXOptions.ApiSecret` is transmitted as `apikey`. The option names match what a user is given
-in the ProjectX UI; the wire names match the gateway. Neither can be renamed unilaterally — see
+`userName`; `ProjectXOptions.ApiSecret` is transmitted as `apiKey` — so the wire field named `apiKey` carries
+the value the operator knows as their *secret*. The option names match what a user is given in the ProjectX UI;
+the wire names match the gateway. Neither can be renamed unilaterally — see
 [ADR-0003](adr/0003-jwt-acquisition-and-cache.md).
+
+The casing is load-bearing and has been wrong before: the request sent `username`/`apikey` until it was
+corrected to match the schema's `LoginApiKeyRequest`. Check `swagger.json`, not this document, if it matters.
 
 The token is cached in memory behind a `SemaphoreSlim` with a double-checked read, so concurrent callers make
 one login rather than N. **Expiry is assumed, not parsed**: the cache stamps `UtcNow + 55 minutes` and refreshes
@@ -157,8 +161,10 @@ them:
 
 - **`WebSocketOptions` binds a hardcoded `"ProjectX:WebSocket"` string** while `ProjectXOptions` uses a
   `SectionName` constant. Inconsistent; the constant is the right pattern.
-- **Environment-variable binding bypasses `IConfiguration`.** The registration reads `PROJECTX_API_KEY` and
-  `PROJECTX_API_SECRET` directly with `Environment.GetEnvironmentVariable` inside the `Configure<>` delegate,
-  which means the standard `ProjectX__ApiKey` double-underscore form does **not** reach the options unless the
-  host has already added an environment provider for it. R-1.2 requires supporting both.
-- **`Api/Models/Types/` is an empty folder** kept alive by a `<Folder Include>` in the csproj.
+- **Credential environment variables are read directly, not through `IConfiguration`.** `ResolveCredential`
+  calls `Environment.GetEnvironmentVariable` for both the flat (`PROJECTX_API_KEY`) and the double-underscore
+  (`ProjectX__ApiKey`) forms, rather than relying on a configuration provider. That is deliberate:
+  `AddProjectXApiClient` accepts an arbitrary `IConfiguration`, and one built without an environment provider
+  would see neither form — which is exactly how `release.yml` came to set credentials the client could not
+  read. The cost is that this bypasses the normal configuration precedence chain; the flat form wins over the
+  double-underscore form, and both win over anything bound from a file.
