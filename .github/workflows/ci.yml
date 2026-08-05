@@ -2,87 +2,189 @@ name: CI
 
 on:
   pull_request:
-    branches:
-      - master
-      - main
+    branches: [develop, staging, main]
   push:
-    branches:
-      - master
-      - main
+    branches: [develop, staging, main]
+  merge_group:
 
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
-# Cancel in-progress runs for the same branch/PR to avoid wasted resources.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded PR runs, but never a push to a long-lived branch.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Least-privilege permissions — jobs may escalate individually if needed.
 permissions:
   contents: read
 
 jobs:
-  build-and-test:
+  # Needs no SDK, so a docs-only PR fails fast instead of waiting on a build.
+  docs:
+    name: docs
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: |
-          8.0.x
-          10.0.x
+      - uses: actions/checkout@v4
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Check documentation links
+        run: ./scripts/check-doc-links.sh
 
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
+  build-test:
+    name: build & unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # MinVer derives the version from tag history. actions/checkout defaults to a shallow clone, which
+          # yields 0.0.0-alpha.0 SILENTLY rather than failing — so the depth matters even here, because the
+          # version is stamped into the assembly (ADR-0006).
+          fetch-depth: 0
 
-    - name: Run unit tests
-      run: dotnet test --no-build --configuration Release --filter "Category!=Integration" --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage" --results-directory ./TestResults
+      - uses: actions/setup-dotnet@v4
+        with:
+          # Both target frameworks are first-class (ADR-0005). Installing one SDK is how a job stops catching
+          # one of them.
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results
-        path: ./TestResults/**/*.trx
+      - name: Restore
+        run: dotnet restore MarqSpec.Client.ProjectX.slnx
 
-    - name: Upload coverage
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage
-        path: ./TestResults/**/coverage.cobertura.xml
+      - name: Format
+        # Absent until now, which is why formatting had never been enforced. Runs before the build so a
+        # whitespace failure does not wait on a compile.
+        run: dotnet format MarqSpec.Client.ProjectX.slnx --verify-no-changes --no-restore
+
+      - name: Build
+        run: dotnet build MarqSpec.Client.ProjectX.slnx --configuration Release --no-restore
+
+      - name: Unit tests
+        run: >-
+          dotnet test MarqSpec.Client.ProjectX.Tests/MarqSpec.Client.ProjectX.Tests.csproj
+          --configuration Release --no-build
+          --logger "trx;LogFileName=unit-tests.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+
+      - name: Upload unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: ./TestResults
+          retention-days: 7
+
+  integration-test:
+    name: integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore MarqSpec.Client.ProjectX.slnx
+
+      - name: Build
+        run: dotnet build MarqSpec.Client.ProjectX.slnx --configuration Release --no-restore
+
+      # No credentials, no services, no Docker: the suite starts the fake gateway in-process on an ephemeral
+      # port (ADR-0007). That is exactly what lets this be a REQUIRED check rather than a manual ritual.
+      # Category!=Live keeps the real-venue tier out; it is opt-in and never gates a merge.
+      - name: Integration tests (fake gateway)
+        run: >-
+          dotnet test MarqSpec.Client.ProjectX.IntegrationTests/MarqSpec.Client.ProjectX.IntegrationTests.csproj
+          --configuration Release --no-build --filter "Category!=Live"
+          --logger "trx;LogFileName=integration-tests.trx"
+          --results-directory ./TestResults
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: ./TestResults
+          retention-days: 7
+
+  # Coverage was collected and uploaded before this, and never evaluated. An artifact nobody reads is a report,
+  # not a gate.
+  #
+  # The floor is 43% because the unit suite MEASURES 45.7% line / 46.5% branch today. The PRD asks for 95%/90%
+  # (R-11.1) and this is nowhere near it — but a floor set at the aspiration fails every build from the first
+  # one, and a gate that is red on arrival gets disabled rather than satisfied. This one is set just under
+  # reality so it catches a regression now, and is meant to be RAISED as coverage improves. Never lower it to
+  # accommodate a drop; that converts the gate back into a report.
+  coverage:
+    name: coverage
+    needs: build-test
+    runs-on: ubuntu-latest
+    env:
+      MINIMUM_LINE_COVERAGE: 43
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: unit-test-results
+          path: ./TestResults
+
+      - name: Enforce the coverage floor
+        run: |
+          set -euo pipefail
+          report=$(find ./TestResults -name 'coverage.cobertura.xml' | head -n1)
+          if [ -z "$report" ]; then
+            echo "::error::No cobertura report found. The unit test job must run with --collect:\"XPlat Code Coverage\"."
+            exit 1
+          fi
+
+          # line-rate is a 0..1 fraction on the root <coverage> element.
+          rate=$(grep -o 'line-rate="[0-9.]*"' "$report" | head -n1 | grep -o '[0-9.]*')
+          percent=$(awk -v r="$rate" 'BEGIN { printf "%d", r * 100 }')
+
+          echo "Line coverage: ${percent}% (floor ${MINIMUM_LINE_COVERAGE}%)"
+          echo "### Line coverage: ${percent}% (floor ${MINIMUM_LINE_COVERAGE}%)" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$percent" -lt "$MINIMUM_LINE_COVERAGE" ]; then
+            echo "::error::Line coverage ${percent}% is below the ${MINIMUM_LINE_COVERAGE}% floor."
+            exit 1
+          fi
 
   pack:
+    name: pack
+    needs: [build-test, integration-test]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: build-and-test
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: |
-          8.0.x
-          10.0.x
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
-    - name: Pack NuGet package
-      run: dotnet pack MarqSpec.Client.ProjectX/MarqSpec.Client.ProjectX.csproj --configuration Release --output ./nupkgs
+      # No -p:PackageVersion: MinVer reads the tag, which is why fetch-depth: 0 above is not optional.
+      - name: Pack
+        run: >-
+          dotnet pack MarqSpec.Client.ProjectX/MarqSpec.Client.ProjectX.csproj
+          --configuration Release --output ./artifacts
 
-    - name: Upload NuGet package
-      uses: actions/upload-artifact@v4
-      with:
-        name: nuget-package
-        path: ./nupkgs/*.nupkg
+      - name: Show the resolved version
+        run: ls -1 ./artifacts
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package
+          path: |
+            ./artifacts/*.nupkg
+            ./artifacts/*.snupkg
+          retention-days: 14
