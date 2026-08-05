@@ -96,9 +96,10 @@ public static class ServiceCollectionExtensions
                 options.Retry.BackoffType = DelayBackoffType.Exponential;
                 options.Retry.MaxDelay = TimeSpan.FromSeconds(30);
                 options.Retry.ShouldHandle = args => new ValueTask<bool>(
-                    args.Outcome.Exception is HttpRequestException ||
-                    (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests) ||
-                    (args.Outcome.Result?.StatusCode >= HttpStatusCode.InternalServerError));
+                    ShouldRetryOutcome(
+                        args.Context.GetRequestMessage(),
+                        args.Outcome.Exception,
+                        args.Outcome.Result));
                 options.Retry.DelayGenerator = args =>
                 {
                     if (args.Outcome.Result is { StatusCode: HttpStatusCode.TooManyRequests } response
@@ -126,6 +127,46 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+
+    /// <summary>
+    /// The gateway pipeline's retry predicate, factored out of the registration lambda so it can be unit-tested
+    /// against the real request and outcome shapes.
+    /// </summary>
+    /// <remarks>
+    /// Placing an order is <b>non-idempotent</b>: if the first attempt reached the gateway and booked the order
+    /// but the acknowledgement was lost to a transport fault, or a <c>5xx</c> came back <i>after</i> the order
+    /// was accepted, a retry would place a <b>second live order</b>. So a placement is <b>never</b> retried
+    /// (gh#629) — its fault surfaces to the caller, which classifies it as an <i>indeterminate</i> venue outcome
+    /// and leaves the durable intent (<c>Taking</c> / <c>Firing</c>) for reconciliation rather than releasing a
+    /// maybe-live order. Every other route here is a read/search or an idempotent cancel, so the standard
+    /// transient-fault retry (transport fault, <c>429</c>, <c>5xx</c>) still applies. If the request cannot be
+    /// identified — a defensive null — it is treated as "not a placement" and the standard retry still covers
+    /// it, so this guard is never <i>less</i> resilient than the pipeline was before it.
+    /// </remarks>
+    internal static bool ShouldRetryOutcome(
+        HttpRequestMessage? request,
+        Exception? exception,
+        HttpResponseMessage? response)
+    {
+        if (IsOrderPlacement(request))
+        {
+            return false;
+        }
+
+        return exception is HttpRequestException
+            || response?.StatusCode == HttpStatusCode.TooManyRequests
+            || response?.StatusCode >= HttpStatusCode.InternalServerError;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="request"/> is the non-idempotent order-placement call
+    /// (<c>POST /api/Order/place</c>) that must never be auto-retried (gh#629). A null or route-less request is
+    /// treated as "not a placement", so this guard only ever <i>removes</i> retries from a confirmed placement
+    /// and never adds double-place risk beyond the pipeline's prior behaviour.
+    /// </summary>
+    internal static bool IsOrderPlacement(HttpRequestMessage? request) =>
+        request?.RequestUri is { } uri
+        && uri.AbsolutePath.EndsWith("/Order/place", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// HTTP message handler that adds authentication to requests.
