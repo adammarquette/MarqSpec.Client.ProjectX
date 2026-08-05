@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docker-compose.yml` (the fake gateway as a service) and `docker-compose.dev.yml` (a pinned SDK toolchain)
 - `[LiveGatewayFact]`, which skips on a condition that can actually become false, and a `Category=Live` trait
   for the opt-in real-gateway tier
+- **`branch-policy.yml`** — `ladder` (enforcing `main` ← `staging` ← `develop`, and that a promotion's head
+  branch lives in this repository), `commit-hygiene` (Conventional subjects, no leftover `fixup!` / `wip`), and
+  an advisory `issue-link` check that reads GitHub's bound closing references rather than the body text
+- **A coverage gate**, replacing an artifact that was uploaded and never evaluated
+- **A documentation link check** in CI, so a dead relative link fails a build instead of a reader
+- `dependabot.yml` for NuGet and GitHub Actions, grouped so `Microsoft.Extensions.*` moves together, and
+  capped below the FluentAssertions licence change
 - `MessageSendFailed` event on `IProjectXWebSocketClient` for reporting failed WebSocket message sends
 - `WebSocketMessageFailedEventArgs` event args class with `HubName`, `MethodName`, `Arguments`, `Exception`, and `Timestamp`
 - `LoginErrorCode` enum mirroring the API's `LoginErrorCode` contract, used to describe authentication failures
@@ -48,7 +55,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WebSocket `AccessTokenProvider` now fetches a fresh token on each reconnect instead of using a stale captured token
 - WebSocket hub logging now uses `ILoggerFactory` instead of a broken `ILogger` → `ILoggerProvider` cast that silently dropped all hub logs
 - Integration tests now use `[Fact(Skip = "...")]` instead of a silent early return
-- CI pipeline filters out integration tests by default and adds a `pack` job on main/master pushes
+- CI now targets `develop` / `staging` / `main`, runs `dotnet format --verify-no-changes` (which it never did),
+  runs the integration tier as a required check, and packs without `-p:PackageVersion` so MinVer resolves the
+  version from the tag
+- CodeQL now installs both target frameworks' SDKs, matching `ci.yml` — it previously analysed a `net10.0`-only
+  build of a library that multi-targets
+- **The release workflow no longer passes live API credentials into an unfiltered `dotnet test`.** The live
+  tier was in scope on the release path; that it mostly did not execute was an accident of hardcoded skip
+  strings, not a design. It now runs `Category!=Live` and verifies the packed version matches the tag and that
+  a `.snupkg` was produced
 - **The version is now derived from the git tag by MinVer.** `<Version>` is removed from the csproj, where it
   had drifted in both directions — behind at `1.0.4` against a released `v1.0.5`, then ahead at `1.0.6` against
   a version that was never tagged
