@@ -508,10 +508,10 @@ public class OrderManagementTests
         A.CallTo(() => _authService.GetAccessTokenAsync(A<CancellationToken>._))
             .Returns("test-token");
         A.CallTo(() => _restApi.SearchOrdersAsync(
-            A<SearchOrderRequest>.That.Matches(r => 
-                r.AccountId == accountId && 
-                r.StartTime == startTime && 
-                r.EndTime == endTime),
+            A<SearchOrderRequest>.That.Matches(r =>
+                r.AccountId == accountId &&
+                r.StartTimestamp == startTime &&
+                r.EndTimestamp == endTime),
             A<CancellationToken>._))
             .Returns(searchResponse);
 

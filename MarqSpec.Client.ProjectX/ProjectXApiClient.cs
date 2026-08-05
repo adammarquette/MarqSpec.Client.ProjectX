@@ -525,11 +525,11 @@ public class ProjectXApiClient : IProjectXApiClient
                 accountId, startTime, endTime);
 
             await EnsureAuthenticatedAsync(cancellationToken);
-            var request = new SearchOrderRequest 
-            { 
-                AccountId = accountId, 
-                StartTime = startTime, 
-                EndTime = endTime 
+            var request = new SearchOrderRequest
+            {
+                AccountId = accountId,
+                StartTimestamp = startTime,
+                EndTimestamp = endTime
             };
             var response = await _restApi.SearchOrdersAsync(request, cancellationToken);
 
