@@ -26,8 +26,9 @@ Credentials are supplied by configuration, never compiled in.
   constructs successfully and then fails on the first order is worse than one that refuses to start.
 - **R-1.5** Authentication failures surface a clear, actionable error distinguishable from a transport failure.
 
-> Naming trap, preserved because the gateway defines it: `ApiKey` is sent as the gateway's `username` field and
-> `ApiSecret` as its `apikey` field. See [ADR-0003](adr/0003-jwt-acquisition-and-cache.md).
+> Naming trap, preserved because the gateway defines it: `ApiKey` is sent as the gateway's `userName` field and
+> `ApiSecret` as its `apiKey` field — so the wire field called `apiKey` carries the operator's *secret*.
+> See [ADR-0003](adr/0003-jwt-acquisition-and-cache.md).
 
 ## R-2 — Market data reads
 

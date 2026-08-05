@@ -53,12 +53,12 @@ public class ProjectXOptions
     {
         if (string.IsNullOrWhiteSpace(ApiKey))
         {
-            throw new InvalidOperationException("API key is required. Configure it via environment variable PROJECTX_API_KEY or appsettings.json.");
+            throw new InvalidOperationException("API key is required. Configure it via the ProjectX__ApiKey environment variable, the legacy PROJECTX_API_KEY, user secrets, or the ProjectX configuration section.");
         }
 
         if (string.IsNullOrWhiteSpace(ApiSecret))
         {
-            throw new InvalidOperationException("API secret is required. Configure it via environment variable PROJECTX_API_SECRET or appsettings.json.");
+            throw new InvalidOperationException("API secret is required. Configure it via the ProjectX__ApiSecret environment variable, the legacy PROJECTX_API_SECRET, user secrets, or the ProjectX configuration section.");
         }
 
         if (string.IsNullOrWhiteSpace(BaseUrl))

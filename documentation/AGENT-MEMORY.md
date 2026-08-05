@@ -26,7 +26,8 @@ before — `startTimestamp` / `endTimestamp` in #15.
 **2026-08-05 — Two things that look like bugs and are load-bearing.** Before "fixing" either, read why:
 enums serialize as **integers** (a string-enum converter breaks every enum-carrying request — #14,
 [ADR-0001](adr/0001-refit-typed-rest-client.md)), and `ProjectXOptions.ApiKey` is transmitted as the gateway's
-`username` field ([ADR-0003](adr/0003-jwt-acquisition-and-cache.md)).
+`userName` field while `ApiSecret` goes in its `apiKey` field
+([ADR-0003](adr/0003-jwt-acquisition-and-cache.md)).
 
 **2026-08-05 — This repo is one half of a two-repo card.** Work here is usually driven by an issue in
 trading-copilot. Check both trackers before assuming a card is free, and remember that a clean `main` here reads

@@ -10,9 +10,11 @@ hub connections need one. Acquiring a token per request would be slow and would 
 
 Two wrinkles come from the gateway, not from us:
 
-1. **The field names are misleading.** `loginKey` takes `{ "username": …, "apikey": … }`, and the values a user
+1. **The field names are misleading.** `loginKey` takes `{ "userName": …, "apiKey": … }`, and the values a user
    is given in the ProjectX UI are labelled "API key" and "API secret". So `ProjectXOptions.ApiKey` is
-   transmitted as `username`, and `ApiSecret` as `apikey`.
+   transmitted as `userName`, and `ApiSecret` as `apiKey` — meaning the wire field called `apiKey` carries the
+   value the operator knows as their *secret*. (The exact casing matters and has already been wrong once: the
+   request sent `username`/`apikey` until it was corrected to match the `LoginApiKeyRequest` schema.)
 2. **The response does not state an expiry** in a form the client reads. The JWT carries an `exp` claim, but
    nothing outside the token says when it dies.
 
