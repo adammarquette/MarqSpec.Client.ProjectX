@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`MarqSpec.Client.ProjectX.FakeGateway`** — a stand-in for the ProjectX venue: the REST surface from
+  `swagger.json`, both SignalR hubs, a real signed JWT, and a `/_control` surface for driving scenarios
+  (fills, quotes, `429` with `Retry-After` in either encoding, `5xx`, stalls)
+- **`MarqSpec.Client.ProjectX.IntegrationTests`** — an integration tier that runs with **no credentials and no
+  Docker**, hosting the fake gateway in-process on an ephemeral Kestrel port. 21 tests covering the REST
+  surface, the resilience pipeline, and both hubs over a real WebSocket
+- `docker-compose.yml` (the fake gateway as a service) and `docker-compose.dev.yml` (a pinned SDK toolchain)
+- `[LiveGatewayFact]`, which skips on a condition that can actually become false, and a `Category=Live` trait
+  for the opt-in real-gateway tier
 - `MessageSendFailed` event on `IProjectXWebSocketClient` for reporting failed WebSocket message sends
 - `WebSocketMessageFailedEventArgs` event args class with `HubName`, `MethodName`, `Arguments`, `Exception`, and `Timestamp`
 - `LoginErrorCode` enum mirroring the API's `LoginErrorCode` contract, used to describe authentication failures
@@ -60,6 +69,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conventions are now supported, with the flat form still winning so no existing deployment changes behaviour
 
 ### Removed
+- **`run-integration-tests.ps1`**, whose documented job was to rewrite source files to strip `Skip`
+  attributes. Nothing edits source in order to run tests any more
+- The live-API integration tests from inside the *unit-test* project, and the tracked
+  `appsettings.integration.json` they read credentials from. 22 of their 43 facts carried a hardcoded skip
+  string that ignored the credential detection sitting right beside it, so they were disabled whether or not
+  credentials existed — coverage-shaped rather than coverage
 - Committed junk: a 0-byte `swagger_full.json`, three `.cs.backup` files (~40 KB of dead near-duplicate
   source), and the root-level `DiagnoseContracts.cs` / `TestContractSearch.csx` scripts, which sat outside any
   project and were compiled by nothing

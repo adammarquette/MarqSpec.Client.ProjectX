@@ -14,6 +14,8 @@
     <File Path="CHANGELOG.md" />
     <File Path="CONTRIBUTING.md" />
     <File Path="README.md" />
+    <File Path="docker-compose.yml" />
+    <File Path="docker-compose.dev.yml" />
     <File Path="swagger.json" />
   </Folder>
   <Folder Name="/Solution Items/documentation/">
@@ -39,6 +41,8 @@
     <File Path="documentation/agents/platform.md" />
   </Folder>
   <Project Path="MarqSpec.Client.ProjectX.Diagnostics/MarqSpec.Client.ProjectX.Diagnostics.csproj" />
+  <Project Path="MarqSpec.Client.ProjectX.FakeGateway/MarqSpec.Client.ProjectX.FakeGateway.csproj" />
+  <Project Path="MarqSpec.Client.ProjectX.IntegrationTests/MarqSpec.Client.ProjectX.IntegrationTests.csproj" />
   <Project Path="MarqSpec.Client.ProjectX.Samples/MarqSpec.Client.ProjectX.Samples.csproj" />
   <Project Path="MarqSpec.Client.ProjectX.Tests/MarqSpec.Client.ProjectX.Tests.csproj" />
   <Project Path="MarqSpec.Client.ProjectX/MarqSpec.Client.ProjectX.csproj" />

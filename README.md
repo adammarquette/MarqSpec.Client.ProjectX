@@ -78,14 +78,29 @@ Runnable examples: [`MarqSpec.Client.ProjectX.Samples/`](MarqSpec.Client.Project
 
 ```bash
 dotnet build MarqSpec.Client.ProjectX.slnx
-dotnet test --filter "Category!=Integration"
+dotnet test
 ```
 
-Unit tests are fully mocked and touch no network.
+**That is the whole setup** — no credentials, no Docker, no network. Unit tests are fully mocked; the
+integration tier starts a fake ProjectX gateway in-process on an ephemeral port and drives the client against it
+over real HTTP and a real WebSocket, including both SignalR hubs
+([ADR-0007](documentation/adr/0007-local-test-environment.md)).
 
-Integration tests currently require live gateway credentials and are excluded from CI. That is being replaced by
-a local fake gateway so the tier runs with **no credentials** — see
-[ADR-0007](documentation/adr/0007-local-test-environment.md).
+Optional — for pointing the sample apps at a fake venue, or reproducing a container problem:
+
+```bash
+docker compose up -d fake-gateway
+PROJECTX_FAKE_GATEWAY_URL=http://localhost:8080 dotnet test
+```
+
+And for a toolchain identical to CI's, which also sidesteps Windows blocking freshly built unsigned assemblies:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm sdk dotnet test
+```
+
+Tests against the **real** gateway are tagged `Category=Live`, run only when credentials are present, and are
+never required for a green build.
 
 Before a PR: `dotnet format --verify-no-changes`, and a clean `dotnet build -c Release` on **both** target
 frameworks.
