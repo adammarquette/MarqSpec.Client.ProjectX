@@ -9,9 +9,12 @@ The release workflow then overrode it with `-p:PackageVersion=` derived from the
 
 So there were two sources of truth, one of which silently lost. The observable results:
 
-- **The csproj said `1.0.4` while the latest tag and published release were `v1.0.5`.** The csproj value was
-  already dead — the workflow overrode it — but it was the value a developer read, and the value stamped into
-  the assembly when anyone built locally or when `--no-build` was used before packing.
+- **The csproj version has drifted in both directions.** It sat at `1.0.4` while the latest tag and published
+  release were `v1.0.5` — *behind*. Then #16 bumped it to `1.0.6`, a version that has never been tagged and
+  never released — *ahead*. Either way the value is dead in a release build, because the workflow overrides it
+  with `-p:PackageVersion` from the tag. But it is the value a developer reads, and the value stamped into the
+  assembly on any local build. A number that is wrong in both directions at different times is not a number
+  anyone is maintaining.
 - **Tags are inconsistently named**: `1.0.2` has no prefix; `v1.0.0`, `v1.0.3`, `v1.0.4`, `v1.0.5` do.
 - **Releases are inconsistently titled**: one is `1.0.0a`.
 - **`CHANGELOG.md` jumps from `[Unreleased]` to `[1.0.2]`** while 1.0.3, 1.0.4 and 1.0.5 all shipped.
