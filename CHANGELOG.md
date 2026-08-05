@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 - Removed hardcoded API credentials from `appsettings.integration.json`
+- Stopped tracking `appsettings.json` in the Diagnostics and Samples projects and added them to `.gitignore`, so real credentials can no longer be committed there — each project's README documents the shape to place in a local (ignored) `appsettings.json`
 
 ## [1.0.2] - 2026-03-28
 
