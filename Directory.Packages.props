@@ -35,7 +35,7 @@
       Microsoft.Extensions.* packages below, so their versions are not expected to match.
     -->
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.8.0" />
-    <PackageVersion Include="Polly.Core" Version="8.6.5" />
+    <PackageVersion Include="Polly.Core" Version="8.7.0" />
   </ItemGroup>
 
   <ItemGroup Label="Library — configuration, options, logging">
