@@ -23,7 +23,7 @@ jobs:
     needs: gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # MinVer needs tag history. Without this the package would be stamped 0.0.0-alpha.0 and pushed to
           # nuget.org under that version — silently, because a shallow clone is not an error (ADR-0006).
