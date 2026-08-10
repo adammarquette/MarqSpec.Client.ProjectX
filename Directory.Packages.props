@@ -20,7 +20,7 @@
 
   <ItemGroup Label="Build">
     <!-- Versioning from the git tag (ADR-0006). Build-time only; never a runtime dependency. -->
-    <PackageVersion Include="MinVer" Version="6.0.0" />
+    <PackageVersion Include="MinVer" Version="7.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Library — transport">
