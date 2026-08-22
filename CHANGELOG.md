@@ -10,7 +10,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > that can go stale. Its entry moves in the **promotion PR**, not after the release — the 1.0.3–1.0.5 gap below
 > was backfilled precisely because "write it up afterwards" does not survive contact with a merge.
 
-## [Unreleased]
+## [2.0.0] - 2026-08-21
+
+> **This is the first release published to nuget.org since 1.0.4.** `v1.0.5` was tagged and a GitHub release
+> was cut, but no package ever reached nuget.org: the csproj declared `<Version>1.0.4</Version>`, so `dotnet
+> pack` produced a `1.0.4.nupkg` and `dotnet nuget push --skip-duplicate` skipped it without failing. That is
+> the drift [ADR-0006](documentation/adr/0006-tag-driven-versioning.md) removed. **Upgrading from 1.0.4 brings
+> the 1.0.5 work as well as everything below.**
+
+### Breaking changes
+- **`SearchOrderRequest.StartTime` and `.EndTime` are removed**, replaced by `StartTimestamp` and
+  `EndTimestamp` ([ADR-0009](documentation/adr/0009-search-order-window-rename.md)). The gateway's schema names
+  the window `startTimestamp` / `endTimestamp` and **requires** `startTimestamp`; the old names matched no field
+  in the schema, so a caller-supplied window was silently dropped and the search ran over some other window. The
+  migration is a two-property rename. No `[Obsolete]` shim is provided on purpose — a property that compiles and
+  does not reach the gateway is the fault being fixed.
+- `IProjectXApiClient.GetOrdersAsync(accountId, startTime, endTime)` is **unchanged**. Consumers using the
+  client interface rather than constructing the DTO directly are unaffected.
 
 ### Added
 - **`MarqSpec.Client.ProjectX.FakeGateway`** — a stand-in for the ProjectX venue: the REST surface from
