@@ -13,10 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.0] - 2026-08-22
 
 > **This is the first release published to nuget.org since 1.0.4.** `v1.0.5` was tagged and a GitHub release
-> was cut, but no package ever reached nuget.org: the csproj declared `<Version>1.0.4</Version>`, so `dotnet
-> pack` produced a `1.0.4.nupkg` and `dotnet nuget push --skip-duplicate` skipped it without failing. That is
-> the drift [ADR-0006](documentation/adr/0006-tag-driven-versioning.md) removed. **Upgrading from 1.0.4 brings
-> the 1.0.5 work as well as everything below.**
+> was cut, but no package ever reached nuget.org: the release run **failed at the `Test` step** — an unfiltered
+> `dotnet test` with live gateway credentials injected — and never got as far as pack or push. It went red and
+> was not acted on. The release path no longer runs the live tier or carries credentials at all; it runs
+> `Category!=Live` against the fake gateway ([ADR-0007](documentation/adr/0007-local-test-environment.md)).
+> **Upgrading from 1.0.4 brings the 1.0.5 work as well as everything below.**
 
 ### Breaking changes
 
