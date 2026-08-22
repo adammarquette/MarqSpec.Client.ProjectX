@@ -11,7 +11,8 @@ call, and a place to hang cross-cutting concerns — auth, retry, logging.
 ## Decision
 
 Declare the transport as a **Refit interface** (`IProjectXRestApi`) registered with
-`AddRefitClient<T>(_gatewaySettings)`, and expose a hand-written facade (`IProjectXApiClient`) on top of it.
+`AddRefitGeneratedClient<T>(_gatewaySettings)`, and expose a hand-written facade (`IProjectXApiClient`) on top of
+it.
 
 The facade exists so the public surface is not the wire surface: it can rename, combine, validate arguments, and
 translate gateway errors into `ProjectXApiException` without those concerns leaking into the generated
@@ -43,6 +44,12 @@ schema is integer-typed and it rejects strings, so `retrieveBars` failed with
   looking.
 - Refit's exception type is `ApiException`; the facade translates to `ProjectXApiException` so consumers do not
   take a Refit dependency to catch errors.
+- **Every method on the interface must generate inline.** As of Refit 15 the source-generated request builder is
+  the only one in the box; the reflection builder moved behind an opt-in `Refit.Reflection` package, and
+  `AddRefitClient<T>` throws `NotSupportedException` at resolution without it. `AddRefitGeneratedClient<T>` uses
+  the generated implementation instead, which is why the registration names it. A method the generator cannot
+  emit raises `RF006` — a warning, and therefore a build error here (`TreatWarningsAsErrors`), so the interface
+  cannot silently drift back onto reflection.
 - The interface must stay faithful to `swagger.json`. When the two disagree, **the swagger wins** and the
   interface is the defect — field names have moved before (`startTimestamp`/`endTimestamp`).
 
