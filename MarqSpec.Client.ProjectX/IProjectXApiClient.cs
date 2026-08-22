@@ -33,9 +33,21 @@ public interface IProjectXApiClient
     /// Gets a specific contract by its ID.
     /// </summary>
     /// <param name="contractId">The contract ID to retrieve.</param>
-    /// <param name="live">Whether to search in live or simulation contracts.</param>
+    /// <param name="live">
+    /// <b>Ignored.</b> The gateway's <c>SearchContractByIdRequest</c> schema defines only <c>contractId</c>,
+    /// so a by-ID lookup cannot be scoped to live or simulation. Passing <see langword="false"/> does not
+    /// restrict the result.
+    /// </param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The contract if found, otherwise null.</returns>
+    /// <remarks>
+    /// <see cref="SearchContractsAsync"/> and <see cref="GetAvailableContractsAsync"/> take a <c>live</c> that
+    /// <i>is</i> honoured — their request schemas define the field. This one never did.
+    /// </remarks>
+    [Obsolete("The live flag is ignored: the gateway's SearchContractByIdRequest schema has no such "
+          + "field, so a contract lookup by ID cannot be scoped to live or simulation. Use "
+          + "GetContractByIdAsync(contractId, cancellationToken), which is what this already calls "
+          + "(gh#76).")]
     Task<Contract?> GetContractAsync(string contractId, bool live = true, CancellationToken cancellationToken = default);
 
     /// <summary>
