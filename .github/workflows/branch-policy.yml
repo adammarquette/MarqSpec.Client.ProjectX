@@ -5,9 +5,26 @@ on:
     types: [opened, reopened, synchronize, edited, labeled, unlabeled]
   merge_group:
 
-concurrency:
-  group: branch-policy-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+# No concurrency group, deliberately.
+#
+# `github.ref` is `refs/pull/<n>/merge` for EVERY pull_request event, so `opened`, each `labeled`, each
+# `unlabeled` and each `edited` all shared one group and cancelled one another. Opening a PR with three labels
+# in a single `gh pr create` emitted four events inside one second; three runs were cancelled, and a cancelled
+# run reports `cancelled` for its contexts. `ladder`, `commit-hygiene` and `issue-link` are REQUIRED on staging
+# and main, so the PR sat unmergeable with nothing failing (gh#64).
+#
+# It was intermittent -- gh#54 and gh#60 came out clean and gh#63, gh#65 and gh#70 did not -- which is worse
+# than consistently broken: an occasionally-blocking gate with no failure attached teaches people to force past
+# it, which is the opposite of what these three jobs are for. It also punished the repo's own rule, since root
+# AGENTS.md requires maximal metadata on every PR and applying labels at creation is what triggered it.
+#
+# `cancel-in-progress: false` is NOT sufficient. Queued runs still get superseded -- GitHub keeps only the most
+# recent pending run in a group and cancels the older ones -- so a required context could still land
+# `cancelled`. The only way no run cancels another is for there to be no group.
+#
+# The cost is a handful of extra runs of three jobs that take about five seconds each. ci.yml keeps its group:
+# its jobs run for minutes, and it does not subscribe to the label actions, so it cannot fire four times in a
+# second the way this one did.
 
 permissions:
   contents: read
