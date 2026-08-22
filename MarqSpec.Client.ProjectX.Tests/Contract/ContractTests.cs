@@ -134,6 +134,38 @@ public class ContractTests
             .MustHaveHappenedOnceExactly();
     }
 
+    // gh#76 -- the live flag is accepted and ignored, and cannot be honoured: the gateway's
+    // SearchContractByIdRequest schema defines only contractId. Asserting the attribute rather than the
+    // behaviour is the point; a behavioural test would keep passing if someone quietly un-deprecated it.
+    [Fact]
+    public void GetContractAsync_ShouldBeObsolete_BecauseTheLiveFlagCannotBeHonoured()
+    {
+        var method = typeof(IProjectXApiClient).GetMethod(
+            "GetContractAsync",
+            [typeof(string), typeof(bool), typeof(CancellationToken)]);
+
+        var obsolete = method!.GetCustomAttributes(typeof(ObsoleteAttribute), inherit: false)
+            .Cast<ObsoleteAttribute>()
+            .SingleOrDefault();
+
+        obsolete.Should().NotBeNull();
+        obsolete!.IsError.Should().BeFalse("removing it would break consumers; it is a warning");
+        obsolete.Message.Should().Contain("GetContractByIdAsync");
+    }
+
+    // The live flag on these two IS honoured -- their request schemas define the field -- so they must not be
+    // swept up in the deprecation.
+    [Fact]
+    public void SearchAndAvailableContracts_ShouldNotBeObsolete_BecauseTheirLiveFlagReachesTheWire()
+    {
+        foreach (var name in new[] { nameof(IProjectXApiClient.SearchContractsAsync), nameof(IProjectXApiClient.GetAvailableContractsAsync) })
+        {
+            typeof(IProjectXApiClient).GetMethod(name)!
+                .GetCustomAttributes(typeof(ObsoleteAttribute), inherit: false)
+                .Should().BeEmpty(name + " honours its live flag and must stay supported");
+        }
+    }
+
     [Fact]
     public async Task GetContractAsync_DelegatesToGetContractByIdAsync()
     {
@@ -147,8 +179,11 @@ public class ContractTests
                 A<CancellationToken>._))
             .Returns(new SearchContractByIdResponse { Success = true, Contract = expectedContract });
 
-        // Act
+        // Act -- deliberately the obsolete overload: this test exists to prove it still delegates correctly
+        // for consumers who have not migrated yet.
+#pragma warning disable CS0618
         var result = await _client.GetContractAsync("ESH5");
+#pragma warning restore CS0618
 
         // Assert
         result.Should().NotBeNull();

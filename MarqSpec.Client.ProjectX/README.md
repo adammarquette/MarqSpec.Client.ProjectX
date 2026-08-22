@@ -303,7 +303,7 @@ Automatic reconnection is enabled by default. When a connection drops, the clien
 | Method | Parameters | Returns | Description |
 |--------|------------|---------|-------------|
 | `SearchContractsAsync` | `string? searchText, bool live = true` | `IEnumerable<Contract>` | Search contracts by text |
-| `GetContractAsync` | `string contractId, bool live = true` | `Contract?` | Get a contract by ID |
+| ~~`GetContractAsync`~~ | `string contractId, bool live` | `Contract?` | **Deprecated** — `live` is ignored; the by-ID route has no such field. Use `GetContractByIdAsync` |
 | `GetContractByIdAsync` | `string contractId` | `Contract?` | Direct contract lookup by ID |
 | `GetAvailableContractsAsync` | `bool live = true` | `IEnumerable<Contract>` | List all available contracts |
 

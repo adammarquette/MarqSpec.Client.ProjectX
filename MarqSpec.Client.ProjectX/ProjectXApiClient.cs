@@ -114,6 +114,10 @@ public class ProjectXApiClient : IProjectXApiClient
     }
 
     /// <inheritdoc/>
+    [Obsolete("The live flag is ignored: the gateway's SearchContractByIdRequest schema has no such "
+          + "field, so a contract lookup by ID cannot be scoped to live or simulation. Use "
+          + "GetContractByIdAsync(contractId, cancellationToken), which is what this already calls "
+          + "(gh#76).")]
     public async Task<Contract?> GetContractAsync(string contractId, bool live = true, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(contractId))

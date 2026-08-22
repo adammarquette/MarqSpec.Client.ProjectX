@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   omitted
 
 ### Deprecated
+- `IProjectXApiClient.GetContractAsync(contractId, live, ct)` — **the `live` flag is ignored and cannot be
+  honoured.** The gateway's `SearchContractByIdRequest` schema defines only `contractId`, so a by-ID lookup
+  has no live/simulation dimension; a caller passing `live: false` got unrestricted data with no error. Use
+  `GetContractByIdAsync(contractId, ct)`, which is what it already delegated to. `SearchContractsAsync` and
+  `GetAvailableContractsAsync` keep their `live` — theirs reaches the wire. Marked `[Obsolete]`, not removed
 - `ProjectXOptions.ValidateSslCertificates` — **has no effect; TLS validation is always on.** Left unwired
   deliberately: honouring `false` would add a supported way to disable certificate validation against a live
   trading venue. Marked `[Obsolete]`, not removed
