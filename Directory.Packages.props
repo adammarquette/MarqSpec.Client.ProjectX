@@ -46,13 +46,18 @@
   </ItemGroup>
 
   <ItemGroup Label="Apps and tests — configuration hosts">
-    <!-- Unified at the library's 9.0.3: Samples and Diagnostics were on 10.0.0. -->
+    <!--
+      Held in lockstep with the Microsoft.Extensions.* versions above, which is the whole point of this
+      file: these two lagged at 10.0.10 while the library group moved to 10.0.11, and a split family is
+      exactly how NU1109 arrives — a transitive Microsoft.Extensions.Logging 10.0.11 against a lower
+      centrally pinned Abstractions. Bump the group, not one member of it.
+    -->
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.11" />
   </ItemGroup>
 
   <ItemGroup Label="Test stack">
