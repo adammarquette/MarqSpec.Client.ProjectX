@@ -194,7 +194,7 @@ public class MarketDataTests
         result.TickSize.Should().Be(0.25m);
     }
 
-    [Fact(Skip="Contract Names Change")]
+    [Fact(Skip = "Contract Names Change")]
     public async Task GetContractAsync_WithNonExistingContract_ReturnsNull()
     {
         // Arrange
@@ -281,8 +281,8 @@ public class MarketDataTests
         A.CallTo(() => _authService.GetAccessTokenAsync(A<CancellationToken>._))
             .Returns("test-token");
         A.CallTo(() => _restApi.RetrieveBarsAsync(
-            A<RetrieveBarRequest>.That.Matches(r => 
-                r.ContractId == "ESH5" && 
+            A<RetrieveBarRequest>.That.Matches(r =>
+                r.ContractId == "ESH5" &&
                 r.Unit == AggregateBarUnit.Minute &&
                 r.UnitNumber == 5),
             A<CancellationToken>._))

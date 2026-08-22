@@ -1,38 +1,50 @@
 <Solution>
   <Folder Name="/.github/">
     <File Path=".github/copilot-instructions.md" />
+    <File Path=".github/dependabot.yml" />
+    <File Path=".github/pull_request_template.md" />
   </Folder>
   <Folder Name="/.github/workflows/">
+    <File Path=".github/workflows/AGENTS.md" />
+    <File Path=".github/workflows/branch-policy.yml" />
     <File Path=".github/workflows/ci.yml" />
+    <File Path=".github/workflows/codeql.yml" />
     <File Path=".github/workflows/release.yml" />
   </Folder>
   <Folder Name="/Solution Items/">
-    <File Path="PRD.md" />
-    <Folder Name="/Solution Items/Summary/">
-      <File Path="docs/README.md" />
-      <File Path="docs/DIAGNOSTIC_TOOLS_SUMMARY.md" />
-      <File Path="docs/FUTURE_DATE_VALIDATION_UPDATE.md" />
-      <File Path="docs/HOW_TO_RUN_INTEGRATION_TESTS.md" />
-      <File Path="docs/IMPLEMENTATION_SUMMARY.md" />
-      <File Path="docs/INTEGRATION_TESTS_SUMMARY.md" />
-      <File Path="docs/INTEGRATION_TEST_CREDENTIAL_UPDATE.md" />
-      <File Path="docs/INTEGRATION_TEST_EXECUTION_REPORT_2025-01-08.md" />
-      <File Path="docs/INTEGRATION_TEST_PROGRESS_2025-01-08.md" />
-      <File Path="docs/MARKET_DATA_CLEANUP_SUMMARY.md" />
-      <File Path="docs/MARKET_DATA_INTEGRATION_TESTS_SUMMARY.md" />
-      <File Path="docs/NEXT_STEPS_PRIORITY_1.md" />
-      <File Path="docs/PRIORITY_2_COMPLETE_WEBSOCKET.md" />
-      <File Path="docs/QUICK_REFERENCE.md" />
-      <File Path="docs/QUICK_START_DIAGNOSTICS.md" />
-      <File Path="docs/SAMPLE_DYNAMIC_CONTRACTS_SUMMARY.md" />
-      <File Path="docs/SAMPLE_UPDATE_DYNAMIC_CONTRACTS.md" />
-      <File Path="docs/UPDATE_SUMMARY_ES_TO_NQ.md" />
-      <File Path="docs/WEBSOCKET_API_REFERENCE.md" />
-      <File Path="docs/WEBSOCKET_FIX_SUMMARY.md" />
-    </Folder>
+    <File Path="AGENTS.md" />
+    <File Path="CHANGELOG.md" />
+    <File Path="CONTRIBUTING.md" />
     <File Path="README.md" />
+    <File Path="docker-compose.yml" />
+    <File Path="docker-compose.dev.yml" />
+    <File Path="swagger.json" />
+  </Folder>
+  <Folder Name="/Solution Items/documentation/">
+    <File Path="documentation/README.md" />
+    <File Path="documentation/AGENT-MEMORY.md" />
+    <File Path="documentation/projectx-client-prd.md" />
+    <File Path="documentation/projectx-client-architecture.md" />
+  </Folder>
+  <Folder Name="/Solution Items/documentation/adr/">
+    <File Path="documentation/adr/README.md" />
+    <File Path="documentation/adr/0001-refit-typed-rest-client.md" />
+    <File Path="documentation/adr/0002-resilience-and-idempotency.md" />
+    <File Path="documentation/adr/0003-jwt-acquisition-and-cache.md" />
+    <File Path="documentation/adr/0004-hub-client-is-a-singleton.md" />
+    <File Path="documentation/adr/0005-multi-targeting.md" />
+    <File Path="documentation/adr/0006-tag-driven-versioning.md" />
+    <File Path="documentation/adr/0007-local-test-environment.md" />
+    <File Path="documentation/adr/0008-branch-ladder-and-governance.md" />
+  </Folder>
+  <Folder Name="/Solution Items/documentation/agents/">
+    <File Path="documentation/agents/README.md" />
+    <File Path="documentation/agents/code-reviewer.md" />
+    <File Path="documentation/agents/platform.md" />
   </Folder>
   <Project Path="MarqSpec.Client.ProjectX.Diagnostics/MarqSpec.Client.ProjectX.Diagnostics.csproj" />
+  <Project Path="MarqSpec.Client.ProjectX.FakeGateway/MarqSpec.Client.ProjectX.FakeGateway.csproj" />
+  <Project Path="MarqSpec.Client.ProjectX.IntegrationTests/MarqSpec.Client.ProjectX.IntegrationTests.csproj" />
   <Project Path="MarqSpec.Client.ProjectX.Samples/MarqSpec.Client.ProjectX.Samples.csproj" />
   <Project Path="MarqSpec.Client.ProjectX.Tests/MarqSpec.Client.ProjectX.Tests.csproj" />
   <Project Path="MarqSpec.Client.ProjectX/MarqSpec.Client.ProjectX.csproj" />

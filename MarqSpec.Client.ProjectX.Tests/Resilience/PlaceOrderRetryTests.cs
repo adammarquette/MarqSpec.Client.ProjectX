@@ -1,6 +1,6 @@
+using System.Net;
 using FluentAssertions;
 using MarqSpec.Client.ProjectX.DependencyInjection;
-using System.Net;
 
 namespace MarqSpec.Client.ProjectX.Tests.Resilience;
 
@@ -16,15 +16,15 @@ public class PlaceOrderRetryTests
     private static HttpRequestMessage Request(string path) =>
         new(HttpMethod.Post, new Uri($"https://gateway.example.com{path}"));
 
-    private static readonly HttpRequestMessage Place = Request("/api/Order/place");
-    private static readonly HttpRequestMessage Search = Request("/api/Order/search");
+    private static readonly HttpRequestMessage _place = Request("/api/Order/place");
+    private static readonly HttpRequestMessage _search = Request("/api/Order/search");
 
     [Fact]
     public void ShouldRetryOutcome_ForPlaceOnTransportFault_DoesNotRetry()
     {
         // The dangerous case: a transport fault after the gateway may already have booked the order.
         ServiceCollectionExtensions
-            .ShouldRetryOutcome(Place, new HttpRequestException("connection reset"), response: null)
+            .ShouldRetryOutcome(_place, new HttpRequestException("connection reset"), response: null)
             .Should().BeFalse("retrying a non-idempotent place after a lost ack would double-place (gh#629)");
     }
 
@@ -32,7 +32,7 @@ public class PlaceOrderRetryTests
     public void ShouldRetryOutcome_ForPlaceOnServerError_DoesNotRetry()
     {
         ServiceCollectionExtensions
-            .ShouldRetryOutcome(Place, exception: null, new HttpResponseMessage(HttpStatusCode.InternalServerError))
+            .ShouldRetryOutcome(_place, exception: null, new HttpResponseMessage(HttpStatusCode.InternalServerError))
             .Should().BeFalse("a 5xx may follow an accepted place — a retry would double-place");
     }
 
@@ -40,7 +40,7 @@ public class PlaceOrderRetryTests
     public void ShouldRetryOutcome_ForPlaceOnTooManyRequests_DoesNotRetry()
     {
         ServiceCollectionExtensions
-            .ShouldRetryOutcome(Place, exception: null, new HttpResponseMessage(HttpStatusCode.TooManyRequests))
+            .ShouldRetryOutcome(_place, exception: null, new HttpResponseMessage(HttpStatusCode.TooManyRequests))
             .Should().BeFalse("even a 429 is not safe to auto-retry for a non-idempotent place");
     }
 
@@ -49,7 +49,7 @@ public class PlaceOrderRetryTests
     {
         // A read/search is idempotent — the standard transient-fault retry must still apply.
         ServiceCollectionExtensions
-            .ShouldRetryOutcome(Search, new HttpRequestException("connection reset"), response: null)
+            .ShouldRetryOutcome(_search, new HttpRequestException("connection reset"), response: null)
             .Should().BeTrue();
     }
 
@@ -57,7 +57,7 @@ public class PlaceOrderRetryTests
     public void ShouldRetryOutcome_ForSearchOnServerError_Retries()
     {
         ServiceCollectionExtensions
-            .ShouldRetryOutcome(Search, exception: null, new HttpResponseMessage(HttpStatusCode.InternalServerError))
+            .ShouldRetryOutcome(_search, exception: null, new HttpResponseMessage(HttpStatusCode.InternalServerError))
             .Should().BeTrue();
     }
 
@@ -65,7 +65,7 @@ public class PlaceOrderRetryTests
     public void ShouldRetryOutcome_ForSearchOnTooManyRequests_Retries()
     {
         ServiceCollectionExtensions
-            .ShouldRetryOutcome(Search, exception: null, new HttpResponseMessage(HttpStatusCode.TooManyRequests))
+            .ShouldRetryOutcome(_search, exception: null, new HttpResponseMessage(HttpStatusCode.TooManyRequests))
             .Should().BeTrue();
     }
 
@@ -73,7 +73,7 @@ public class PlaceOrderRetryTests
     public void ShouldRetryOutcome_ForSearchOnSuccess_DoesNotRetry()
     {
         ServiceCollectionExtensions
-            .ShouldRetryOutcome(Search, exception: null, new HttpResponseMessage(HttpStatusCode.OK))
+            .ShouldRetryOutcome(_search, exception: null, new HttpResponseMessage(HttpStatusCode.OK))
             .Should().BeFalse("a successful response is not a transient fault");
     }
 
@@ -81,7 +81,7 @@ public class PlaceOrderRetryTests
     public void ShouldRetryOutcome_ForSearchOnBadRequest_DoesNotRetry()
     {
         ServiceCollectionExtensions
-            .ShouldRetryOutcome(Search, exception: null, new HttpResponseMessage(HttpStatusCode.BadRequest))
+            .ShouldRetryOutcome(_search, exception: null, new HttpResponseMessage(HttpStatusCode.BadRequest))
             .Should().BeFalse("a 4xx is a caller error, not a transient fault");
     }
 

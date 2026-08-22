@@ -1,0 +1,31 @@
+# Local test environment for MarqSpec.Client.ProjectX.
+#
+#   docker compose up -d fake-gateway
+#   PROJECTX_FAKE_GATEWAY_URL=http://localhost:8080 dotnet test
+#
+# This is OPTIONAL. `dotnet test` on its own already starts the same application in-process on an ephemeral
+# port (see MarqSpec.Client.ProjectX.IntegrationTests/Infrastructure/FakeGatewayFixture.cs), so the suite needs
+# neither Docker nor credentials. Compose is here for the cases in-process hosting cannot cover: pointing the
+# Samples or Diagnostics apps at a fake venue, reproducing a container-networking problem, or running the tier
+# against the same image CI would use.
+#
+# See documentation/adr/0007-local-test-environment.md.
+
+services:
+  # A stand-in for the ProjectX gateway: the REST surface from swagger.json, both SignalR hubs, a real signed
+  # JWT, and a /_control surface for driving scenarios. It talks to nothing and holds no secret.
+  fake-gateway:
+    build:
+      context: .
+      dockerfile: MarqSpec.Client.ProjectX.FakeGateway/Dockerfile
+    image: marqspec-projectx-fake-gateway:local
+    ports:
+      - "${FAKE_GATEWAY_PORT:-8080}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s

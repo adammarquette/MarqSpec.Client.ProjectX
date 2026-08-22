@@ -1,6 +1,6 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Headers;
+using FluentAssertions;
 
 namespace MarqSpec.Client.ProjectX.Tests.Resilience;
 

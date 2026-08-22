@@ -620,7 +620,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         {
             _logger.LogWarning(error, "Market hub connection closed");
             UpdateMarketHubState(ConnectionState.Disconnected, error);
-            
+
             if (_options.AutoReconnect && error != null)
             {
                 _logger.LogInformation("Auto-reconnect enabled, will attempt to reconnect market hub");
@@ -680,7 +680,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         {
             _logger.LogWarning(error, "User hub connection closed");
             UpdateUserHubState(ConnectionState.Disconnected, error);
-            
+
             if (_options.AutoReconnect && error != null)
             {
                 _logger.LogInformation("Auto-reconnect enabled, will attempt to reconnect user hub");
