@@ -1,3 +1,4 @@
+using System.Reflection;
 using FakeItEasy;
 using FluentAssertions;
 using MarqSpec.Client.ProjectX.Api.Models;
@@ -373,6 +374,48 @@ public class OrderManagementTests
 
     #region GetOrderAsync Tests
 
+    // gh#57 -- the windowless overload carries [Obsolete(error: true)], so source cannot call it at all: the
+    // compiler raises CS0619, which is an error and cannot be pragma-suppressed. That compile break is the
+    // primary guarantee, and it is asserted below by reflecting on the attribute.
+    //
+    // The runtime guard still matters, because a consumer assembly compiled against 1.0.x binds to this method
+    // and keeps calling it after a package upgrade. Reflection is how that caller reaches it, so reflection is
+    // how the test does.
+    [Fact]
+    public void GetOrderAsync_ShouldBeMarkedObsoleteAsError_WhenNoWindowIsAccepted()
+    {
+        var method = typeof(IProjectXApiClient).GetMethod(
+            nameof(IProjectXApiClient.GetOrderAsync),
+            [typeof(int), typeof(long), typeof(CancellationToken)]);
+
+        var obsolete = method!.GetCustomAttributes(typeof(ObsoleteAttribute), inherit: false)
+            .Cast<ObsoleteAttribute>()
+            .SingleOrDefault();
+
+        obsolete.Should().NotBeNull();
+        obsolete!.IsError.Should().BeTrue();
+        obsolete.Message.Should().Contain("startTimestamp");
+    }
+
+    [Fact]
+    public void GetOrderAsync_ShouldThrowNotSupported_WhenAPreviouslyCompiledCallerInvokesIt()
+    {
+        // Arrange: the binding an assembly compiled against 1.0.x already holds.
+        var method = typeof(ProjectXApiClient).GetMethod(
+            nameof(ProjectXApiClient.GetOrderAsync),
+            [typeof(int), typeof(long), typeof(CancellationToken)]);
+
+        // Act
+        var act = () => method!.Invoke(_client, [12345, 98765L, CancellationToken.None]);
+
+        // Assert
+        var assertion = act.Should().Throw<TargetInvocationException>();
+        assertion.WithInnerException<NotSupportedException>()
+            .Which.Message.Should().Contain("search window");
+        A.CallTo(() => _restApi.SearchOrdersAsync(A<SearchOrderRequest>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
     [Fact]
     public async Task GetOrderAsync_WithExistingOrder_ReturnsOrder()
     {
@@ -403,13 +446,14 @@ public class OrderManagementTests
 
         A.CallTo(() => _authService.GetAccessTokenAsync(A<CancellationToken>._))
             .Returns("test-token");
+        var startTime = DateTime.UtcNow.AddDays(-1);
         A.CallTo(() => _restApi.SearchOrdersAsync(
-            A<SearchOrderRequest>.That.Matches(r => r.AccountId == accountId),
+            A<SearchOrderRequest>.That.Matches(r => r.AccountId == accountId && r.StartTime == startTime),
             A<CancellationToken>._))
             .Returns(searchResponse);
 
         // Act
-        var result = await _client.GetOrderAsync(accountId, orderId);
+        var result = await _client.GetOrderAsync(accountId, orderId, startTime);
 
         // Assert
         result.Should().NotBeNull();
@@ -439,7 +483,7 @@ public class OrderManagementTests
             .Returns(searchResponse);
 
         // Act
-        var result = await _client.GetOrderAsync(accountId, orderId);
+        var result = await _client.GetOrderAsync(accountId, orderId, DateTime.UtcNow.AddDays(-1));
 
         // Assert
         result.Should().BeNull();
@@ -449,7 +493,7 @@ public class OrderManagementTests
     public async Task GetOrderAsync_WithInvalidAccountId_ThrowsArgumentException()
     {
         // Act
-        var act = async () => await _client.GetOrderAsync(0, 98765);
+        var act = async () => await _client.GetOrderAsync(0, 98765, DateTime.UtcNow.AddDays(-1));
 
         // Assert
         await act.Should().ThrowAsync<ArgumentException>()
@@ -510,8 +554,8 @@ public class OrderManagementTests
         A.CallTo(() => _restApi.SearchOrdersAsync(
             A<SearchOrderRequest>.That.Matches(r =>
                 r.AccountId == accountId &&
-                r.StartTimestamp == startTime &&
-                r.EndTimestamp == endTime),
+                r.StartTime == startTime &&
+                r.EndTime == endTime),
             A<CancellationToken>._))
             .Returns(searchResponse);
 
@@ -534,6 +578,52 @@ public class OrderManagementTests
         // Assert
         await act.Should().ThrowAsync<ArgumentException>()
             .WithMessage("*Account ID must be greater than zero*");
+    }
+
+    // gh#57 -- the gateway's /api/Order/search schema marks startTimestamp REQUIRED. Sending null let the
+    // gateway pick a window, and an order outside it came back absent: a live order reported as not placed.
+    // A window the client invents silently would reproduce exactly that, so the call fails instead.
+
+    [Fact]
+    public async Task GetOrdersAsync_ShouldThrowArgumentException_WhenNoStartTimeIsSupplied()
+    {
+        // Act
+        var act = async () => await _client.GetOrdersAsync(12345);
+
+        // Assert
+        var assertion = await act.Should().ThrowAsync<ArgumentException>();
+        assertion.Which.Message.Should().Contain("startTimestamp");
+        assertion.Which.ParamName.Should().Be("startTime");
+    }
+
+    [Fact]
+    public async Task GetOrdersAsync_ShouldNotCallTheGateway_WhenNoStartTimeIsSupplied()
+    {
+        // Act
+        var act = async () => await _client.GetOrdersAsync(12345, null, DateTime.UtcNow);
+        await act.Should().ThrowAsync<ArgumentException>();
+
+        // Assert: it must fail before the request, not send a request the schema rejects.
+        A.CallTo(() => _restApi.SearchOrdersAsync(A<SearchOrderRequest>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Fact]
+    public async Task GetOrdersAsync_ShouldSendTheWindowOnTheWire_WhenStartTimeIsSupplied()
+    {
+        // Arrange
+        var startTime = DateTime.UtcNow.AddDays(-7);
+        A.CallTo(() => _authService.GetAccessTokenAsync(A<CancellationToken>._)).Returns("test-token");
+        A.CallTo(() => _restApi.SearchOrdersAsync(A<SearchOrderRequest>._, A<CancellationToken>._))
+            .Returns(new SearchOrderResponse { Success = true, ErrorCode = 0, Orders = [] });
+
+        // Act
+        await _client.GetOrdersAsync(12345, startTime);
+
+        // Assert
+        A.CallTo(() => _restApi.SearchOrdersAsync(
+            A<SearchOrderRequest>.That.Matches(r => r.StartTime == startTime),
+            A<CancellationToken>._)).MustHaveHappenedOnceExactly();
     }
 
     #endregion

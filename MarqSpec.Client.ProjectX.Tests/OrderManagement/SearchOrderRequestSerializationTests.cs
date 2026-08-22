@@ -20,8 +20,8 @@ public class SearchOrderRequestSerializationTests
         var request = new SearchOrderRequest
         {
             AccountId = 42,
-            StartTimestamp = new DateTime(2026, 8, 4, 12, 0, 0, DateTimeKind.Utc),
-            EndTimestamp = new DateTime(2026, 8, 4, 20, 0, 0, DateTimeKind.Utc),
+            StartTime = new DateTime(2026, 8, 4, 12, 0, 0, DateTimeKind.Utc),
+            EndTime = new DateTime(2026, 8, 4, 20, 0, 0, DateTimeKind.Utc),
         };
 
         using JsonDocument document = JsonDocument.Parse(JsonSerializer.Serialize(request));

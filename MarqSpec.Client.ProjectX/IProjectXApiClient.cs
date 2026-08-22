@@ -88,22 +88,60 @@ public interface IProjectXApiClient
     Task<CancelOrderResponse> CancelOrderAsync(int accountId, long orderId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a specific order by ID, searching the supplied window.
+    /// </summary>
+    /// <param name="accountId">The account ID.</param>
+    /// <param name="orderId">The order ID to retrieve.</param>
+    /// <param name="startTime">
+    /// The start of the window to search. <b>Required by the gateway</b> — see the remarks.
+    /// </param>
+    /// <param name="endTime">The end of the window, or null for "up to now".</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The order if found within the window, otherwise null.</returns>
+    /// <remarks>
+    /// There is no by-ID route on the gateway, so this searches <c>/api/Order/search</c> and filters. That
+    /// endpoint's schema marks <c>startTimestamp</c> required, and <b>an order outside the window is returned
+    /// as absent</b> — indistinguishable from "no such order". Choose a window that certainly contains the
+    /// order; when reconciling a placement, that means one starting before the placement was attempted.
+    /// </remarks>
+    Task<Order?> GetOrderAsync(int accountId, long orderId, DateTime startTime, DateTime? endTime = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets a specific order by ID.
     /// </summary>
     /// <param name="accountId">The account ID.</param>
     /// <param name="orderId">The order ID to retrieve.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The order if found, otherwise null.</returns>
+    [Obsolete(
+        "A search window is required. This overload sent no startTimestamp, which the gateway's " +
+        "/api/Order/search schema marks required; the gateway then applied a window of its own and an order " +
+        "outside it came back as null -- a live order reported as not found. Use " +
+        "GetOrderAsync(accountId, orderId, startTime, endTime, cancellationToken) with a window that " +
+        "certainly contains the order (gh#57).",
+        error: true)]
     Task<Order?> GetOrderAsync(int accountId, long orderId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets orders within a specified time range.
     /// </summary>
     /// <param name="accountId">The account ID to query.</param>
-    /// <param name="startTime">The start time for the search range.</param>
-    /// <param name="endTime">The end time for the search range.</param>
+    /// <param name="startTime">
+    /// The start of the search range. <b>Required</b> — the gateway's <c>/api/Order/search</c> schema marks
+    /// <c>startTimestamp</c> required, and passing null throws <see cref="ArgumentException"/> rather than
+    /// letting the gateway silently choose a window.
+    /// </param>
+    /// <param name="endTime">The end time for the search range, or null for "up to now".</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The list of orders matching the criteria.</returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="startTime"/> is null, or <paramref name="accountId"/> is not greater than zero.
+    /// </exception>
+    /// <remarks>
+    /// <paramref name="startTime"/> stays nullable so the signature is unchanged, but null is now rejected: an
+    /// order outside whatever window the gateway picks is returned as absent, and a caller cannot tell that
+    /// apart from "no such order" (gh#57).
+    /// </remarks>
     Task<IEnumerable<Order>> GetOrdersAsync(int accountId, DateTime? startTime = null, DateTime? endTime = null, CancellationToken cancellationToken = default);
 
     /// <summary>

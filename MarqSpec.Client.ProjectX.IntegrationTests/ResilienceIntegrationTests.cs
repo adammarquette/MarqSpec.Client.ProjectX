@@ -81,13 +81,19 @@ public class ResilienceIntegrationTests : IAsyncLifetime
         attempts.Should().Be(1, "even a rate-limit response is not safe to auto-retry for a placement");
     }
 
+    /// <summary>
+    /// A window wide enough to contain everything the gateway seeds. The order search requires one — see
+    /// gh#57 — so these retry tests must supply it; they are about the pipeline, not about the window.
+    /// </summary>
+    private static DateTime SearchWindowStart => DateTime.UtcNow.AddDays(-30);
+
     /// <summary>The other side of the boundary: an idempotent read must still be retried.</summary>
     [Fact]
     public async Task GetOrders_ShouldRetryAndSucceed_WhenTheFirstAttemptsFail()
     {
         await _gateway.ArmFaultAsync(new { pathSuffix = "/api/Order/search", status = 500, remaining = 2 });
 
-        var orders = await _client.GetOrdersAsync(FakeGatewayFixture.KnownAccountId);
+        var orders = await _client.GetOrdersAsync(FakeGatewayFixture.KnownAccountId, SearchWindowStart);
 
         orders.Should().NotBeNull();
 
@@ -110,7 +116,7 @@ public class ResilienceIntegrationTests : IAsyncLifetime
             retryAfterAsHttpDate = true,
         });
 
-        var orders = await _client.GetOrdersAsync(FakeGatewayFixture.KnownAccountId);
+        var orders = await _client.GetOrdersAsync(FakeGatewayFixture.KnownAccountId, SearchWindowStart);
 
         orders.Should().NotBeNull();
         (await _gateway.RequestCountAsync("/api/Order/search")).Should().Be(2);
@@ -121,7 +127,7 @@ public class ResilienceIntegrationTests : IAsyncLifetime
     {
         await _gateway.ArmFaultAsync(new { pathSuffix = "/api/Order/search", status = 500, remaining = 99 });
 
-        var act = async () => await _client.GetOrdersAsync(FakeGatewayFixture.KnownAccountId);
+        var act = async () => await _client.GetOrdersAsync(FakeGatewayFixture.KnownAccountId, SearchWindowStart);
 
         await act.Should().ThrowAsync<Exception>();
 

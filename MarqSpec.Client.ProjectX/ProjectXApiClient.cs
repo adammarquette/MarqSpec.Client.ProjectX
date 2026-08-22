@@ -461,7 +461,21 @@ public class ProjectXApiClient : IProjectXApiClient
     }
 
     /// <inheritdoc/>
-    public async Task<Order?> GetOrderAsync(int accountId, long orderId, CancellationToken cancellationToken = default)
+    [Obsolete(
+        "A search window is required. This overload sent no startTimestamp, which the gateway's " +
+        "/api/Order/search schema marks required; the gateway then applied a window of its own and an order " +
+        "outside it came back as null -- a live order reported as not found. Use " +
+        "GetOrderAsync(accountId, orderId, startTime, endTime, cancellationToken) with a window that " +
+        "certainly contains the order (gh#57).",
+        error: true)]
+    public Task<Order?> GetOrderAsync(int accountId, long orderId, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException(
+            "GetOrderAsync(accountId, orderId) cannot be served safely: the gateway requires a search window " +
+            "and returns an order outside it as absent, which is indistinguishable from 'no such order'. Use " +
+            "the overload that takes startTime (gh#57).");
+
+    /// <inheritdoc/>
+    public async Task<Order?> GetOrderAsync(int accountId, long orderId, DateTime startTime, DateTime? endTime = null, CancellationToken cancellationToken = default)
     {
         if (accountId <= 0)
         {
@@ -470,10 +484,16 @@ public class ProjectXApiClient : IProjectXApiClient
 
         try
         {
-            _logger.LogDebug("Retrieving order: {OrderId}, Account: {AccountId}", orderId, accountId);
+            _logger.LogDebug("Retrieving order: {OrderId}, Account: {AccountId}, StartTime: {StartTime}, EndTime: {EndTime}",
+                orderId, accountId, startTime, endTime);
 
             await EnsureAuthenticatedAsync(cancellationToken);
-            var request = new SearchOrderRequest { AccountId = accountId };
+            var request = new SearchOrderRequest
+            {
+                AccountId = accountId,
+                StartTime = startTime,
+                EndTime = endTime
+            };
             var response = await _restApi.SearchOrdersAsync(request, cancellationToken);
 
             if (!response.Success)
@@ -519,6 +539,18 @@ public class ProjectXApiClient : IProjectXApiClient
             throw new ArgumentException("Account ID must be greater than zero.", nameof(accountId));
         }
 
+        // The gateway's /api/Order/search schema marks startTimestamp required. Sending null let the gateway
+        // apply a window of its own, and an order outside that window came back absent -- which the caller
+        // cannot tell apart from "no such order". Substituting a default window here would reproduce exactly
+        // that, silently, so the call fails instead (gh#57).
+        if (startTime is null)
+        {
+            throw new ArgumentException(
+                "A search window is required: the gateway's /api/Order/search schema marks startTimestamp as " +
+                "required, and an order outside the window it would otherwise choose is returned as absent.",
+                nameof(startTime));
+        }
+
         try
         {
             _logger.LogDebug("Retrieving orders for account: {AccountId}, StartTime: {StartTime}, EndTime: {EndTime}",
@@ -528,8 +560,8 @@ public class ProjectXApiClient : IProjectXApiClient
             var request = new SearchOrderRequest
             {
                 AccountId = accountId,
-                StartTimestamp = startTime,
-                EndTimestamp = endTime
+                StartTime = startTime,
+                EndTime = endTime
             };
             var response = await _restApi.SearchOrdersAsync(request, cancellationToken);
 

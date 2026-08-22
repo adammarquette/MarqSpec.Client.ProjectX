@@ -64,8 +64,33 @@ public static class ServiceCollectionExtensions
             configuration.GetSection("ProjectX:WebSocket").Bind(options);
         });
 
-        // Register authentication service
-        services.AddHttpClient<IAuthenticationService, AuthenticationService>();
+        // Register the authentication service as a SINGLETON.
+        //
+        // The lifetime is the token cache. AuthenticationService holds _accessToken / _tokenExpiration in
+        // instance fields behind an instance SemaphoreSlim, so a transient registration -- which is what
+        // AddHttpClient<TClient, TImplementation> gives you -- hands every consumer an empty cache and its own
+        // lock. ProjectXApiClient and the Refit pipeline's AuthenticationHandler then log in separately, on
+        // every scope, against a rate-limited endpoint; the double-check inside GetAccessTokenAsync dedupes
+        // nothing because concurrent callers wait on different semaphores; and LogoutAsync clears a cache the
+        // transport never reads (gh#55).
+        //
+        // The typed client is registered on the CONCRETE type so the constructor keeps taking an HttpClient --
+        // it is public surface, and the unit suite builds the service directly. The interface is then bound to
+        // that one instance.
+        services.AddHttpClient<AuthenticationService>()
+            // A singleton holding an HttpClient is captive: its handler chain is fixed for the life of the
+            // container, so handler rotation cannot refresh DNS for it. PooledConnectionLifetime is the
+            // documented remedy -- connections retire on a timer and the next one re-resolves. Without it a
+            // long-running host pins the gateway's IP until restart.
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            })
+            // Rotation is pointless for a captive client -- the captured HttpClient keeps the chain it was
+            // built with either way -- and letting the factory expire handlers only leaves dead entries behind.
+            .SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+
+        services.AddSingleton<IAuthenticationService>(sp => sp.GetRequiredService<AuthenticationService>());
 
         // Register Refit client with retry policy
         services.AddRefitGeneratedClient<IProjectXRestApi>(_gatewaySettings)
