@@ -68,7 +68,7 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<IAuthenticationService, AuthenticationService>();
 
         // Register Refit client with retry policy
-        services.AddRefitClient<IProjectXRestApi>(_gatewaySettings)
+        services.AddRefitGeneratedClient<IProjectXRestApi>(_gatewaySettings)
             .ConfigureHttpClient((sp, client) =>
             {
                 var options = sp.GetRequiredService<IOptions<ProjectXOptions>>().Value;

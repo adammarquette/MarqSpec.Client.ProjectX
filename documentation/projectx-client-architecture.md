@@ -19,7 +19,7 @@ IServiceCollection
 ├── Configure<ProjectXOptions>          section "ProjectX"
 ├── Configure<WebSocketOptions>         section "ProjectX:WebSocket"
 ├── AddHttpClient<IAuthenticationService, AuthenticationService>()      typed client
-├── AddRefitClient<IProjectXRestApi>(_gatewaySettings)
+├── AddRefitGeneratedClient<IProjectXRestApi>(_gatewaySettings)
 │     ├── ConfigureHttpClient          BaseAddress from ProjectXOptions.BaseUrl
 │     ├── AddHttpMessageHandler        AuthenticationHandler   (outer)
 │     └── AddStandardResilienceHandler retry / 429 / 5xx       (inner)
@@ -38,7 +38,7 @@ Delegating handlers wrap in registration order, first-registered outermost:
 
 ```
 ProjectXApiClient
-  → IProjectXRestApi            (Refit-generated)
+  → IProjectXRestApi            (Refit source-generated implementation)
     → AuthenticationHandler     attaches Authorization: Bearer <jwt>
       → ResilienceHandler       retry, backoff, Retry-After
         → HttpClientHandler     the socket
