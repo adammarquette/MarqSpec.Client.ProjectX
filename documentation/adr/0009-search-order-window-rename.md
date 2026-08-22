@@ -1,6 +1,10 @@
 # ADR-0009 — `SearchOrderRequest` window fields are renamed, and 2.0.0 is the cost
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0010](0010-order-search-window-is-required.md)
+
+> Superseded before release. The rename this record accepted was reverted: fixing the wire names never
+> required a CLR rename, and the break that genuinely warrants 2.0.0 is the required search window,
+> which this record listed only as a follow-up. The reasoning below is preserved unaltered.
 
 ## Context
 

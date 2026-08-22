@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -160,6 +161,34 @@ public class AuthenticationService : IAuthenticationService
     }
 
     /// <summary>
+    /// Builds a <c>POST</c> carrying <paramref name="accessToken"/> as a bearer credential.
+    /// </summary>
+    /// <remarks>
+    /// <c>/api/Auth/validate</c> and <c>/api/Auth/logout</c> are authenticated routes; only
+    /// <c>/api/Auth/loginKey</c> is not. Through v1.0.5 both went out bare, because the
+    /// <c>AuthenticationHandler</c> that attaches the header is registered on the Refit client and never on the
+    /// <see cref="HttpClient"/> this service owns. The gateway answered <c>401</c>, so
+    /// <see cref="ValidateSessionAsync"/> could never return <see langword="true"/> and
+    /// <see cref="LogoutAsync"/> never terminated the server-side session while still reporting success (gh#56).
+    /// <para>
+    /// The header is set per-request rather than by adding that handler to this client, because
+    /// <c>loginKey</c> travels on the same client — a handler would call
+    /// <see cref="GetAccessTokenAsync"/> to authenticate the very request that acquires the token.
+    /// </para>
+    /// </remarks>
+    private static HttpRequestMessage CreateAuthenticatedRequest(string route, string? accessToken)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, route);
+
+        if (!string.IsNullOrEmpty(accessToken))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        }
+
+        return request;
+    }
+
+    /// <summary>
     /// Builds a human-readable description of a failed login response, surfacing the
     /// <c>errorCode</c> returned by the API (the <c>errorMessage</c> field is frequently null).
     /// </summary>
@@ -203,7 +232,8 @@ public class AuthenticationService : IAuthenticationService
         {
             _logger.LogDebug("Validating current session");
 
-            var response = await _httpClient.PostAsync("/api/Auth/validate", null, cancellationToken);
+            using var request = CreateAuthenticatedRequest("/api/Auth/validate", _accessToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -259,7 +289,8 @@ public class AuthenticationService : IAuthenticationService
 
             if (!string.IsNullOrEmpty(_accessToken))
             {
-                var response = await _httpClient.PostAsync("/api/Auth/logout", null, cancellationToken);
+                using var request = CreateAuthenticatedRequest("/api/Auth/logout", _accessToken);
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
 
                 if (response.IsSuccessStatusCode)
                 {

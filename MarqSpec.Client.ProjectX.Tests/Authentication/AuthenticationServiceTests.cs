@@ -207,6 +207,106 @@ public class AuthenticationServiceTests
         callCount.Should().Be(1, "token should only be fetched once despite concurrent requests");
     }
 
+    #region Bearer token on the session routes (gh#56)
+
+    // /api/Auth/validate and /api/Auth/logout are authenticated routes -- FakeGateway's GatewayMiddleware
+    // enforces the bearer on every /api path except /Auth/loginKey, and so does the real venue. The handler
+    // that attaches Authorization is registered on the Refit client only, never on the HttpClient this service
+    // owns, so the service has to set the header itself from the token it already holds.
+
+    [Fact]
+    public async Task ValidateSessionAsync_ShouldSendBearerToken_WhenATokenIsHeld()
+    {
+        // Arrange
+        var handler = new RecordingHttpMessageHandler();
+        handler.RespondTo("/api/Auth/loginKey", new { token = "test-token", success = true, errorCode = 0 });
+        handler.RespondTo("/api/Auth/validate", new { success = true, errorCode = 0, newToken = (string?)null });
+        var service = new AuthenticationService(_logger, Options.Create(_options), new HttpClient(handler));
+        await service.GetAccessTokenAsync();
+
+        // Act
+        var valid = await service.ValidateSessionAsync();
+
+        // Assert
+        valid.Should().BeTrue();
+        var validate = handler.RequestFor("/api/Auth/validate");
+        validate.Headers.Authorization.Should().NotBeNull();
+        validate.Headers.Authorization!.Scheme.Should().Be("Bearer");
+        validate.Headers.Authorization.Parameter.Should().Be("test-token");
+    }
+
+    [Fact]
+    public async Task ValidateSessionAsync_ShouldSendTheRenewedToken_WhenTheServerIssuesOne()
+    {
+        // Arrange: a renewal must replace the cached token, or the next call authenticates with a dead one.
+        var handler = new RecordingHttpMessageHandler();
+        handler.RespondTo("/api/Auth/loginKey", new { token = "first-token", success = true, errorCode = 0 });
+        handler.RespondTo("/api/Auth/validate", new { success = true, errorCode = 0, newToken = "renewed-token" });
+        handler.RespondTo("/api/Auth/logout", new { success = true, errorCode = 0 });
+        var service = new AuthenticationService(_logger, Options.Create(_options), new HttpClient(handler));
+        await service.GetAccessTokenAsync();
+        await service.ValidateSessionAsync();
+
+        // Act
+        await service.LogoutAsync();
+
+        // Assert
+        handler.RequestFor("/api/Auth/logout").Headers.Authorization!.Parameter.Should().Be("renewed-token");
+    }
+
+    [Fact]
+    public async Task LogoutAsync_ShouldSendBearerToken_WhenATokenIsHeld()
+    {
+        // Arrange
+        var handler = new RecordingHttpMessageHandler();
+        handler.RespondTo("/api/Auth/loginKey", new { token = "test-token", success = true, errorCode = 0 });
+        handler.RespondTo("/api/Auth/logout", new { success = true, errorCode = 0 });
+        var service = new AuthenticationService(_logger, Options.Create(_options), new HttpClient(handler));
+        await service.GetAccessTokenAsync();
+
+        // Act
+        await service.LogoutAsync();
+
+        // Assert
+        var logout = handler.RequestFor("/api/Auth/logout");
+        logout.Headers.Authorization.Should().NotBeNull();
+        logout.Headers.Authorization!.Scheme.Should().Be("Bearer");
+        logout.Headers.Authorization.Parameter.Should().Be("test-token");
+    }
+
+    [Fact]
+    public async Task GetAccessTokenAsync_ShouldNotSendBearerToken_WhenAcquiringTheToken()
+    {
+        // Arrange: loginKey is how a token is obtained, so it must not require one. Attaching the auth handler
+        // to this client instead of setting the header per-route would make this request authenticate itself.
+        var handler = new RecordingHttpMessageHandler();
+        handler.RespondTo("/api/Auth/loginKey", new { token = "test-token", success = true, errorCode = 0 });
+        var service = new AuthenticationService(_logger, Options.Create(_options), new HttpClient(handler));
+
+        // Act
+        await service.GetAccessTokenAsync();
+
+        // Assert
+        handler.RequestFor("/api/Auth/loginKey").Headers.Authorization.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ValidateSessionAsync_ShouldReturnFalseWithoutCallingTheGateway_WhenNoTokenIsHeld()
+    {
+        // Arrange
+        var handler = new RecordingHttpMessageHandler();
+        var service = new AuthenticationService(_logger, Options.Create(_options), new HttpClient(handler));
+
+        // Act
+        var valid = await service.ValidateSessionAsync();
+
+        // Assert
+        valid.Should().BeFalse();
+        handler.Requests.Should().BeEmpty();
+    }
+
+    #endregion
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly HttpStatusCode _statusCode;
@@ -254,6 +354,40 @@ public class AuthenticationServiceTests
                 response.Content = new StringContent(JsonSerializer.Serialize(_responseContent));
             }
             return Task.FromResult(response);
+        }
+    }
+
+    /// <summary>
+    /// Serves a canned JSON body per request path and keeps every outbound <see cref="HttpRequestMessage"/>, so
+    /// a test can assert on headers the service set rather than only on what it returned.
+    /// </summary>
+    private class RecordingHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly Dictionary<string, object> _responses = new(StringComparer.OrdinalIgnoreCase);
+
+        public List<HttpRequestMessage> Requests { get; } = [];
+
+        public void RespondTo(string path, object body) => _responses[path] = body;
+
+        public HttpRequestMessage RequestFor(string path) =>
+            Requests.SingleOrDefault(r => string.Equals(r.RequestUri?.AbsolutePath, path, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException(
+                $"No request to '{path}'. Saw: {string.Join(", ", Requests.Select(r => r.RequestUri?.AbsolutePath))}");
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+
+            var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+            if (!_responses.TryGetValue(path, out var body))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(body)),
+            });
         }
     }
 }

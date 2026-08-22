@@ -1,5 +1,6 @@
 using FluentAssertions;
 using MarqSpec.Client.ProjectX.Api.Models;
+using MarqSpec.Client.ProjectX.Authentication;
 using MarqSpec.Client.ProjectX.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -166,4 +167,122 @@ public class RestSurfaceIntegrationTests : IAsyncLifetime
 
         reachable.Should().BeTrue();
     }
+
+    #region Session routes (gh#56)
+
+    // GatewayMiddleware enforces the bearer on every /api path except /Auth/loginKey, exactly as the venue
+    // does. Through v1.0.5 both of these went out with no Authorization header at all, so both answered 401 --
+    // and neither had a test in either project to notice.
+
+    [Fact]
+    public async Task ValidateSessionAsync_ShouldSucceed_WhenTheGatewayEnforcesTheBearer()
+    {
+        var auth = _services.GetRequiredService<IAuthenticationService>();
+        await auth.GetAccessTokenAsync();
+
+        var valid = await auth.ValidateSessionAsync();
+
+        valid.Should().BeTrue("the request must carry the bearer the service already holds");
+    }
+
+    [Fact]
+    public async Task ValidateSessionAsync_ShouldAdoptTheRenewedToken_WhenTheGatewayIssuesOne()
+    {
+        var auth = _services.GetRequiredService<IAuthenticationService>();
+        var original = await auth.GetAccessTokenAsync();
+
+        await auth.ValidateSessionAsync();
+        var current = await auth.GetAccessTokenAsync();
+
+        // The fake reissues on validate, so a client that ignored newToken would keep the original.
+        current.Should().NotBe(original);
+    }
+
+    [Fact]
+    public async Task LogoutAsync_ShouldBeAcceptedByTheGateway_WhenATokenIsHeld()
+    {
+        var auth = _services.GetRequiredService<IAuthenticationService>();
+        await auth.GetAccessTokenAsync();
+
+        var act = async () => await auth.LogoutAsync();
+
+        await act.Should().NotThrowAsync();
+    }
+
+    #endregion
+
+    #region Order search window (gh#57)
+
+    [Fact]
+    public async Task GetOrdersAsync_ShouldReturnTheOrder_WhenTheWindowContainsIt()
+    {
+        var placed = await _client.PlaceOrderAsync(new PlaceOrderRequest
+        {
+            AccountId = FakeGatewayFixture.KnownAccountId,
+            ContractId = FakeGatewayFixture.KnownContractId,
+            Type = OrderType.Market,
+            Side = OrderSide.Bid,
+            Size = 1,
+        });
+
+        var orders = await _client.GetOrdersAsync(
+            FakeGatewayFixture.KnownAccountId, DateTime.UtcNow.AddMinutes(-5));
+
+        orders.Should().Contain(o => o.Id == placed.OrderId);
+    }
+
+    [Fact]
+    public async Task GetOrdersAsync_ShouldExcludeTheOrder_WhenTheWindowStartsAfterIt()
+    {
+        // The whole point of gh#57: outside the window an order is simply absent, and absent is
+        // indistinguishable from "never existed". That is why the window can never be chosen for the caller.
+        await _client.PlaceOrderAsync(new PlaceOrderRequest
+        {
+            AccountId = FakeGatewayFixture.KnownAccountId,
+            ContractId = FakeGatewayFixture.KnownContractId,
+            Type = OrderType.Market,
+            Side = OrderSide.Bid,
+            Size = 1,
+        });
+
+        var orders = await _client.GetOrdersAsync(
+            FakeGatewayFixture.KnownAccountId, DateTime.UtcNow.AddMinutes(5));
+
+        orders.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetOrderAsync_ShouldFindThePlacedOrder_WhenGivenAWindowThatContainsIt()
+    {
+        var placed = await _client.PlaceOrderAsync(new PlaceOrderRequest
+        {
+            AccountId = FakeGatewayFixture.KnownAccountId,
+            ContractId = FakeGatewayFixture.KnownContractId,
+            Type = OrderType.Market,
+            Side = OrderSide.Bid,
+            Size = 1,
+        });
+
+        placed.OrderId.Should().NotBeNull();
+
+        var order = await _client.GetOrderAsync(
+            FakeGatewayFixture.KnownAccountId, placed.OrderId!.Value, DateTime.UtcNow.AddMinutes(-5));
+
+        order.Should().NotBeNull();
+        order!.Id.Should().Be(placed.OrderId);
+    }
+
+    [Fact]
+    public async Task GetOrdersAsync_ShouldFailBeforeTheWire_WhenNoWindowIsSupplied()
+    {
+        var act = async () => await _client.GetOrdersAsync(FakeGatewayFixture.KnownAccountId);
+
+        await act.Should().ThrowAsync<ArgumentException>();
+
+        // And the gateway would have rejected it anyway -- the fake now enforces the schema's required field,
+        // so the client's guard is a second line rather than the only one.
+        (await _gateway.RequestCountAsync("/api/Order/search")).Should().Be(0);
+    }
+
+    #endregion
 }

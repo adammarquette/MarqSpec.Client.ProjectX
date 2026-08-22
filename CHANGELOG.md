@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > that can go stale. Its entry moves in the **promotion PR**, not after the release — the 1.0.3–1.0.5 gap below
 > was backfilled precisely because "write it up afterwards" does not survive contact with a merge.
 
-## [2.0.0] - 2026-08-21
+## [2.0.0] - 2026-08-22
 
 > **This is the first release published to nuget.org since 1.0.4.** `v1.0.5` was tagged and a GitHub release
 > was cut, but no package ever reached nuget.org: the csproj declared `<Version>1.0.4</Version>`, so `dotnet
@@ -19,14 +19,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > the 1.0.5 work as well as everything below.**
 
 ### Breaking changes
-- **`SearchOrderRequest.StartTime` and `.EndTime` are removed**, replaced by `StartTimestamp` and
-  `EndTimestamp` ([ADR-0009](documentation/adr/0009-search-order-window-rename.md)). The gateway's schema names
-  the window `startTimestamp` / `endTimestamp` and **requires** `startTimestamp`; the old names matched no field
-  in the schema, so a caller-supplied window was silently dropped and the search ran over some other window. The
-  migration is a two-property rename. No `[Obsolete]` shim is provided on purpose — a property that compiles and
-  does not reach the gateway is the fault being fixed.
-- `IProjectXApiClient.GetOrdersAsync(accountId, startTime, endTime)` is **unchanged**. Consumers using the
-  client interface rather than constructing the DTO directly are unaffected.
+
+**The order search now requires a time window**
+([ADR-0010](documentation/adr/0010-order-search-window-is-required.md)). The gateway's `/api/Order/search`
+schema marks `startTimestamp` **required**. The client sent it as null, the gateway applied a window of its
+own, and **an order outside that window came back absent — indistinguishable from "no such order".** In a
+reconciliation path that reads as *a live order was never placed*.
+
+- **`GetOrdersAsync` throws `ArgumentException` when `startTime` is null.** It previously returned whatever the
+  gateway's own window happened to contain. Pass the window that was always required.
+- **`GetOrderAsync(accountId, orderId)` is `[Obsolete(error: true)]`** — replaced by
+  `GetOrderAsync(accountId, orderId, startTime, endTime)`. It no longer compiles, with a message naming the
+  replacement; an assembly compiled against 1.0.x that still binds to it gets `NotSupportedException` rather
+  than a wrong answer.
+- **No default window is substituted anywhere.** A window the client invents silently reproduces exactly the
+  failure above for any order just outside it. Callers who need "is this order live *right now*" and hold no
+  sensible window should use `GetOpenOrdersAsync`, which takes only an account.
+
+**No property was renamed.** An earlier plan for this release
+([ADR-0009](documentation/adr/0009-search-order-window-rename.md), now superseded) would also have renamed
+`SearchOrderRequest.StartTime` / `.EndTime` to `StartTimestamp` / `.EndTimestamp`. That rename was reverted
+before release: fixing the wire names needed only `[JsonPropertyName]`, and breaking every consumer's compile
+over a CLR name bought nothing. **`StartTime` and `EndTime` still compile.**
 
 ### Added
 - **`MarqSpec.Client.ProjectX.FakeGateway`** — a stand-in for the ProjectX venue: the REST surface from
@@ -87,6 +101,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `_gatewaySettings` field and two test fixtures renamed to satisfy the naming rules now enforced at build
 
 ### Fixed
+- **`IAuthenticationService` is now a singleton.** It was registered as a typed HTTP client, which makes it
+  *transient*, so every consumer received a fresh instance with an empty token cache: `ProjectXApiClient` and
+  the Refit pipeline's `AuthenticationHandler` logged in independently on every scope, the double-checked lock
+  inside `GetAccessTokenAsync` could not dedupe across instances, and `LogoutAsync` cleared a cache the
+  transport never read. The captive `HttpClient` sets `PooledConnectionLifetime` so it cannot pin a stale DNS
+  answer
+- **`ValidateSessionAsync` and `LogoutAsync` now send the bearer token.** The handler that attaches
+  `Authorization` is registered on the Refit client only, never on the `HttpClient` the authentication service
+  owns, so both routes went out bare and the gateway answered `401`: `ValidateSessionAsync` could never return
+  `true`, and `LogoutAsync` reported success while never terminating the server-side session. Neither method
+  had a single test in either project
+- `SearchOrderRequest.ContractId` and `.Status` are documented as **serialized and ignored** — neither appears
+  in the gateway's schema, so neither filters anything. The fake gateway no longer pretends otherwise
+- The fake gateway rejects a null `startTimestamp` on `/api/Order/search` with `400`, matching the schema; a
+  double more permissive than the venue is how a suite goes green against a broken client
+- The packaged README no longer claims ".NET 10.0 or later" for a package that multi-targets `net8.0`
 - `BuildHubConnection` logger was always falling back to `NullLoggerProvider` because `ILogger<T>` never implements `ILoggerProvider`
 - WebSocket connections used a captured access token that became stale after token refresh or expiry
 - `GatewayTrade` market hub handler now deserializes the server payload as an array (`TradeUpdate[]`) instead of a single object, matching the gateway contract; previously trade events failed to bind and were silently dropped

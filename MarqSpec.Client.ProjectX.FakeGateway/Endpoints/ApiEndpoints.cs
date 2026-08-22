@@ -139,17 +139,28 @@ public static class ApiEndpoints
                 return new CancelOrderResponse { Success = true };
             })));
 
+        // Mirrors swagger.json exactly, and the two ways it used to not:
+        //
+        //   1. startTimestamp is `required`. Accepting a null one made the fake MORE permissive than the venue,
+        //      which is the failure mode ADR-0007 exists to prevent -- green here, wrong there. It now rejects.
+        //   2. contractId and status are NOT in the schema. Honouring them as filters taught tests that the
+        //      gateway filters server-side when in reality it ignores both and returns the unfiltered window.
         app.MapPost("/api/Order/search", (SearchOrderRequest request, GatewayState state) =>
-            Results.Ok(new SearchOrderResponse
-            {
-                Success = true,
-                Orders = state.Orders.FindAll(o =>
-                    o.AccountId == request.AccountId
-                    && (request.ContractId is null || o.ContractId == request.ContractId)
-                    && (request.Status is null || o.Status == request.Status)
-                    && (request.StartTimestamp is null || o.CreationTimestamp >= request.StartTimestamp)
-                    && (request.EndTimestamp is null || o.CreationTimestamp < request.EndTimestamp)),
-            }));
+            request.StartTime is null
+                ? Results.BadRequest(new
+                {
+                    success = false,
+                    errorCode = 400,
+                    errorMessage = "startTimestamp is required.",
+                })
+                : Results.Ok(new SearchOrderResponse
+                {
+                    Success = true,
+                    Orders = state.Orders.FindAll(o =>
+                        o.AccountId == request.AccountId
+                        && o.CreationTimestamp >= request.StartTime
+                        && (request.EndTime is null || o.CreationTimestamp < request.EndTime)),
+                }));
 
         app.MapPost("/api/Order/searchOpen", (SearchOpenOrderRequest request, GatewayState state) =>
             Results.Ok(new SearchOrderResponse

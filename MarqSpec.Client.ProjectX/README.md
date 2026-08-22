@@ -320,9 +320,25 @@ Automatic reconnection is enabled by default. When a connection drops, the clien
 | `PlaceOrderAsync` | `PlaceOrderRequest request` | `PlaceOrderResponse` | Place a new order |
 | `ModifyOrderAsync` | `ModifyOrderRequest request` | `ModifyOrderResponse` | Modify an existing order |
 | `CancelOrderAsync` | `int accountId, long orderId` | `CancelOrderResponse` | Cancel an existing order |
-| `GetOrderAsync` | `int accountId, long orderId` | `Order?` | Get a specific order |
+| `GetOrderAsync` | `int accountId, long orderId, DateTime startTime, DateTime? endTime` | `Order?` | Get a specific order within a window |
 | `GetOrdersAsync` | `int accountId, DateTime? startTime, DateTime? endTime` | `IEnumerable<Order>` | Get orders in a time range |
 | `GetOpenOrdersAsync` | `int accountId` | `IEnumerable<Order>` | Get all open/working orders |
+
+> **The order search requires a window.** The gateway's `/api/Order/search` schema marks `startTimestamp`
+> required. Omitting it lets the gateway apply a window of its own, and **an order outside that window comes
+> back absent — which a caller cannot tell apart from "no such order".** In a reconciliation path that reads as
+> *a live order was never placed*.
+>
+> So `GetOrdersAsync` throws `ArgumentException` when `startTime` is null, and the two-argument
+> `GetOrderAsync(accountId, orderId)` is `[Obsolete(error: true)]` — replaced by the overload above. Neither
+> substitutes a default window, because a window the client invents silently reproduces exactly the failure it
+> is meant to prevent. Choose one that certainly contains the order; when reconciling a placement, that means
+> starting before the placement was attempted.
+>
+> `GetOpenOrdersAsync` needs no window — `/api/Order/searchOpen` takes only an account.
+
+Note also that `SearchOrderRequest.ContractId` and `.Status` are **not** in the gateway's schema. They are
+serialized and ignored, so they filter nothing; filter the returned collection instead.
 
 #### Positions
 
@@ -715,7 +731,7 @@ Thrown when API requests fail. Includes:
 
 ## Requirements
 
-- .NET 10.0 or later
+- .NET 8.0 or .NET 10.0 — the package multi-targets both, and both are first-class
 - Valid ProjectX API credentials
 
 ## License
