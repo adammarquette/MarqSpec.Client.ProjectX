@@ -29,6 +29,7 @@ obvious thing", or when a change would break a consumer. Routine implementation 
 | [0006](0006-tag-driven-versioning.md) | The git tag is the version | Accepted |
 | [0007](0007-local-test-environment.md) | A fake gateway, not a request stub, for local and CI testing | Accepted |
 | [0008](0008-branch-ladder-and-governance.md) | Branch ladder, merge methods, and repo governance | Accepted |
+| [0009](0009-search-order-window-rename.md) | `SearchOrderRequest` window fields are renamed, and 2.0.0 is the cost | Accepted |
 
 *Adding a record? Add its row here in the same PR, and add a routing entry in
 [`../README.md`](../README.md) if the corpus shape changes.*
