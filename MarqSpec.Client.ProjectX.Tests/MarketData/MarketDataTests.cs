@@ -185,7 +185,7 @@ public class MarketDataTests
             .Returns(searchResponse);
 
         // Act
-        var result = await _client.GetContractAsync("ESH5");
+        var result = await _client.GetContractByIdAsync("ESH5");
 
         // Assert
         result.Should().NotBeNull();
@@ -211,7 +211,7 @@ public class MarketDataTests
             .Returns(searchResponse);
 
         // Act
-        var result = await _client.GetContractAsync("INVALID");
+        var result = await _client.GetContractByIdAsync("INVALID");
 
         // Assert
         result.Should().BeNull();
@@ -221,7 +221,7 @@ public class MarketDataTests
     public async Task GetContractAsync_WithNullContractId_ThrowsArgumentException()
     {
         // Act
-        var act = async () => await _client.GetContractAsync(null!);
+        var act = async () => await _client.GetContractByIdAsync(null!);
 
         // Assert
         await act.Should().ThrowAsync<ArgumentException>()
@@ -232,7 +232,7 @@ public class MarketDataTests
     public async Task GetContractAsync_WithEmptyContractId_ThrowsArgumentException()
     {
         // Act
-        var act = async () => await _client.GetContractAsync("");
+        var act = async () => await _client.GetContractByIdAsync("");
 
         // Assert
         await act.Should().ThrowAsync<ArgumentException>()

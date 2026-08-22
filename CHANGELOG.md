@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > that can go stale. Its entry moves in the **promotion PR**, not after the release — the 1.0.3–1.0.5 gap below
 > was backfilled precisely because "write it up afterwards" does not survive contact with a merge.
 
-## [Unreleased]
+## [2.1.0] - 2026-08-22
 
 ### Changed
 - **Eleven configuration options now do what they say.** All were bound from configuration, listed in the
@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   omitted
 
 ### Deprecated
+- `IProjectXApiClient.GetContractAsync(contractId, live, ct)` — **the `live` flag is ignored and cannot be
+  honoured.** The gateway's `SearchContractByIdRequest` schema defines only `contractId`, so a by-ID lookup
+  has no live/simulation dimension; a caller passing `live: false` got unrestricted data with no error. Use
+  `GetContractByIdAsync(contractId, ct)`, which is what it already delegated to. `SearchContractsAsync` and
+  `GetAvailableContractsAsync` keep their `live` — theirs reaches the wire. Marked `[Obsolete]`, not removed
 - `ProjectXOptions.ValidateSslCertificates` — **has no effect; TLS validation is always on.** Left unwired
   deliberately: honouring `false` would add a supported way to disable certificate validation against a live
   trading venue. Marked `[Obsolete]`, not removed
@@ -40,6 +45,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first-class; until now only the build was, and the published `net8.0` assembly had never executed a test
 - The coverage gate enforces its floor against the **lowest** of every report rather than an arbitrary one, so
   a regression on one target framework cannot hide behind another
+
+### Fixed
+- **`branch-policy.yml` no longer cancels its own required checks.** Every `pull_request` event shares
+  `refs/pull/<n>/merge`, so opening a PR with several labels emitted several runs into one concurrency group
+  and they cancelled one another — leaving `ladder`, `commit-hygiene` and `issue-link` reporting `cancelled`
+  and the PR unmergeable with nothing failing (gh#64)
 
 ## [2.0.0] - 2026-08-22
 

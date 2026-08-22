@@ -177,7 +177,7 @@ public class Program
 
             try
             {
-                var retrieved = await client.GetContractAsync(testContract.Id);
+                var retrieved = await client.GetContractByIdAsync(testContract.Id);
 
                 if (retrieved != null)
                 {
