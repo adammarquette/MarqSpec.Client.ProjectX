@@ -1,16 +1,16 @@
+using System.Net;
+using System.Text.Json;
+using MarqSpec.Client.ProjectX.Api.Rest;
+using MarqSpec.Client.ProjectX.Authentication;
+using MarqSpec.Client.ProjectX.Configuration;
+using MarqSpec.Client.ProjectX.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
-using MarqSpec.Client.ProjectX.Api.Rest;
-using MarqSpec.Client.ProjectX.Authentication;
-using MarqSpec.Client.ProjectX.Configuration;
-using MarqSpec.Client.ProjectX.WebSocket;
 using Refit;
-using System.Net;
-using System.Text.Json;
 
 namespace MarqSpec.Client.ProjectX.DependencyInjection;
 
@@ -33,7 +33,7 @@ public static class ServiceCollectionExtensions
     /// every enum it defines is integer-typed, and none is a string.
     /// </para>
     /// </remarks>
-    private static readonly RefitSettings GatewaySettings = new()
+    private static readonly RefitSettings _gatewaySettings = new()
     {
         ContentSerializer = new SystemTextJsonContentSerializer(
             new JsonSerializerOptions(JsonSerializerDefaults.Web)),
@@ -54,19 +54,8 @@ public static class ServiceCollectionExtensions
         {
             configuration.GetSection(ProjectXOptions.SectionName).Bind(options);
 
-            // Override with environment variables if present
-            var apiKey = Environment.GetEnvironmentVariable("PROJECTX_API_KEY");
-            var apiSecret = Environment.GetEnvironmentVariable("PROJECTX_API_SECRET");
-
-            if (!string.IsNullOrEmpty(apiKey))
-            {
-                options.ApiKey = apiKey;
-            }
-
-            if (!string.IsNullOrEmpty(apiSecret))
-            {
-                options.ApiSecret = apiSecret;
-            }
+            options.ApiKey = ResolveCredential("PROJECTX_API_KEY", "ProjectX__ApiKey", options.ApiKey);
+            options.ApiSecret = ResolveCredential("PROJECTX_API_SECRET", "ProjectX__ApiSecret", options.ApiSecret);
         });
 
         // Configure WebSocket options
@@ -75,11 +64,36 @@ public static class ServiceCollectionExtensions
             configuration.GetSection("ProjectX:WebSocket").Bind(options);
         });
 
-        // Register authentication service
-        services.AddHttpClient<IAuthenticationService, AuthenticationService>();
+        // Register the authentication service as a SINGLETON.
+        //
+        // The lifetime is the token cache. AuthenticationService holds _accessToken / _tokenExpiration in
+        // instance fields behind an instance SemaphoreSlim, so a transient registration -- which is what
+        // AddHttpClient<TClient, TImplementation> gives you -- hands every consumer an empty cache and its own
+        // lock. ProjectXApiClient and the Refit pipeline's AuthenticationHandler then log in separately, on
+        // every scope, against a rate-limited endpoint; the double-check inside GetAccessTokenAsync dedupes
+        // nothing because concurrent callers wait on different semaphores; and LogoutAsync clears a cache the
+        // transport never reads (gh#55).
+        //
+        // The typed client is registered on the CONCRETE type so the constructor keeps taking an HttpClient --
+        // it is public surface, and the unit suite builds the service directly. The interface is then bound to
+        // that one instance.
+        services.AddHttpClient<AuthenticationService>()
+            // A singleton holding an HttpClient is captive: its handler chain is fixed for the life of the
+            // container, so handler rotation cannot refresh DNS for it. PooledConnectionLifetime is the
+            // documented remedy -- connections retire on a timer and the next one re-resolves. Without it a
+            // long-running host pins the gateway's IP until restart.
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            })
+            // Rotation is pointless for a captive client -- the captured HttpClient keeps the chain it was
+            // built with either way -- and letting the factory expire handlers only leaves dead entries behind.
+            .SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+
+        services.AddSingleton<IAuthenticationService>(sp => sp.GetRequiredService<AuthenticationService>());
 
         // Register Refit client with retry policy
-        services.AddRefitClient<IProjectXRestApi>(GatewaySettings)
+        services.AddRefitGeneratedClient<IProjectXRestApi>(_gatewaySettings)
             .ConfigureHttpClient((sp, client) =>
             {
                 var options = sp.GetRequiredService<IOptions<ProjectXOptions>>().Value;
@@ -126,6 +140,35 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IProjectXWebSocketClient, ProjectXWebSocketClient>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Resolves a credential from the environment, falling back to whatever configuration bound.
+    /// </summary>
+    /// <param name="legacyName">The flat form, e.g. <c>PROJECTX_API_KEY</c>.</param>
+    /// <param name="sectionScopedName">The ASP.NET double-underscore form, e.g. <c>ProjectX__ApiKey</c>.</param>
+    /// <param name="boundValue">The value <see cref="IConfiguration"/> already bound, used when neither is set.</param>
+    /// <remarks>
+    /// Both conventions are read directly rather than relying on the configuration pipeline, because
+    /// <see cref="AddProjectXApiClient"/> accepts an arbitrary <see cref="IConfiguration"/> — one built without
+    /// an environment-variable provider never sees either form. That was a live gap: <c>release.yml</c> sets
+    /// <c>ProjectX__ApiKey</c> / <c>ProjectX__ApiSecret</c>, and only the flat names were read, so the
+    /// workflow's credentials never reached the options (R-1.2).
+    /// <para>
+    /// The flat form wins when both are set, so adding the second convention cannot change what an existing
+    /// deployment resolves to.
+    /// </para>
+    /// </remarks>
+    private static string ResolveCredential(string legacyName, string sectionScopedName, string boundValue)
+    {
+        var legacy = Environment.GetEnvironmentVariable(legacyName);
+        if (!string.IsNullOrEmpty(legacy))
+        {
+            return legacy;
+        }
+
+        var sectionScoped = Environment.GetEnvironmentVariable(sectionScopedName);
+        return string.IsNullOrEmpty(sectionScoped) ? boundValue : sectionScoped;
     }
 
     /// <summary>

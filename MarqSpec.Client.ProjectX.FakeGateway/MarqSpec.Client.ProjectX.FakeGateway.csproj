@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+
+    <!--
+      This project exists to be run, not shipped, and it deliberately has no XML documentation
+      requirement — it is a test fixture, not public surface.
+    -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      References the library on purpose, and uses its Api.Models types for both request binding and
+      response construction. A hand-written set of DTOs here would be a second definition of the wire
+      contract that could disagree with the client's — this way the fake cannot drift from what the
+      client expects. (It can still drift from the real gateway; that is what the Live tier is for.
+      See documentation/adr/0007-local-test-environment.md.)
+    -->
+    <ProjectReference Include="..\MarqSpec.Client.ProjectX\MarqSpec.Client.ProjectX.csproj" />
+  </ItemGroup>
+
+</Project>

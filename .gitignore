@@ -361,7 +361,26 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-# Runtime app configuration may hold real ProjectX credentials — do not commit.
-# Each project's README shows the shape; copy it into a local (ignored) appsettings.json.
-MarqSpec.Client.ProjectX.Diagnostics/appsettings.json
-MarqSpec.Client.ProjectX.Samples/appsettings.json
+
+# =============================================================================
+# Secrets (R-9.3)
+# =============================================================================
+# This is a PUBLIC repository, and its history already contains a rotated real
+# credential (85cb240). Runtime app configuration is exactly the file a developer
+# pastes a key into, so none of it is tracked — only the *.example.json templates
+# are. #17 untracked two of these by path; this generalises the rule so a new
+# project cannot reintroduce the problem by being new.
+#
+# Prefer `dotnet user-secrets` over a local file entirely — every project that
+# reads credentials declares a UserSecretsId.
+**/appsettings.json
+**/appsettings.*.json
+!**/appsettings.example.json
+!**/appsettings.*.example.json
+
+.env
+.env.*
+!.env.example
+
+# Local pack output
+artifacts/

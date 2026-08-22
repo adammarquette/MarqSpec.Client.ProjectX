@@ -1,10 +1,10 @@
 using FakeItEasy;
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using MarqSpec.Client.ProjectX.Authentication;
 using MarqSpec.Client.ProjectX.Configuration;
 using MarqSpec.Client.ProjectX.WebSocket;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace MarqSpec.Client.ProjectX.Tests.WebSocket;
 

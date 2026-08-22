@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Logging;
 using MarqSpec.Client.ProjectX.Api.Models;
 using MarqSpec.Client.ProjectX.Api.Rest;
 using MarqSpec.Client.ProjectX.Authentication;
 using MarqSpec.Client.ProjectX.Exceptions;
+using Microsoft.Extensions.Logging;
 using Refit;
 
 namespace MarqSpec.Client.ProjectX;
@@ -321,7 +321,7 @@ public class ProjectXApiClient : IProjectXApiClient
 
         try
         {
-            _logger.LogDebug("Placing order for contract: {ContractId}, Account: {AccountId}, Type: {Type}, Side: {Side}, Size: {Size}", 
+            _logger.LogDebug("Placing order for contract: {ContractId}, Account: {AccountId}, Type: {Type}, Side: {Side}, Size: {Size}",
                 request.ContractId, request.AccountId, request.Type, request.Side, request.Size);
 
             await EnsureAuthenticatedAsync(cancellationToken);
@@ -333,7 +333,7 @@ public class ProjectXApiClient : IProjectXApiClient
             }
             else
             {
-                _logger.LogWarning("Order placement failed. Error Code: {ErrorCode}, Message: {ErrorMessage}", 
+                _logger.LogWarning("Order placement failed. Error Code: {ErrorCode}, Message: {ErrorMessage}",
                     response.ErrorCode, response.ErrorMessage);
             }
 
@@ -387,7 +387,7 @@ public class ProjectXApiClient : IProjectXApiClient
             }
             else
             {
-                _logger.LogWarning("Order modification failed. Error Code: {ErrorCode}, Message: {ErrorMessage}", 
+                _logger.LogWarning("Order modification failed. Error Code: {ErrorCode}, Message: {ErrorMessage}",
                     response.ErrorCode, response.ErrorMessage);
             }
 
@@ -437,7 +437,7 @@ public class ProjectXApiClient : IProjectXApiClient
             }
             else
             {
-                _logger.LogWarning("Order cancellation failed. Error Code: {ErrorCode}, Message: {ErrorMessage}", 
+                _logger.LogWarning("Order cancellation failed. Error Code: {ErrorCode}, Message: {ErrorMessage}",
                     response.ErrorCode, response.ErrorMessage);
             }
 
@@ -461,7 +461,21 @@ public class ProjectXApiClient : IProjectXApiClient
     }
 
     /// <inheritdoc/>
-    public async Task<Order?> GetOrderAsync(int accountId, long orderId, CancellationToken cancellationToken = default)
+    [Obsolete(
+        "A search window is required. This overload sent no startTimestamp, which the gateway's " +
+        "/api/Order/search schema marks required; the gateway then applied a window of its own and an order " +
+        "outside it came back as null -- a live order reported as not found. Use " +
+        "GetOrderAsync(accountId, orderId, startTime, endTime, cancellationToken) with a window that " +
+        "certainly contains the order (gh#57).",
+        error: true)]
+    public Task<Order?> GetOrderAsync(int accountId, long orderId, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException(
+            "GetOrderAsync(accountId, orderId) cannot be served safely: the gateway requires a search window " +
+            "and returns an order outside it as absent, which is indistinguishable from 'no such order'. Use " +
+            "the overload that takes startTime (gh#57).");
+
+    /// <inheritdoc/>
+    public async Task<Order?> GetOrderAsync(int accountId, long orderId, DateTime startTime, DateTime? endTime = null, CancellationToken cancellationToken = default)
     {
         if (accountId <= 0)
         {
@@ -470,10 +484,16 @@ public class ProjectXApiClient : IProjectXApiClient
 
         try
         {
-            _logger.LogDebug("Retrieving order: {OrderId}, Account: {AccountId}", orderId, accountId);
+            _logger.LogDebug("Retrieving order: {OrderId}, Account: {AccountId}, StartTime: {StartTime}, EndTime: {EndTime}",
+                orderId, accountId, startTime, endTime);
 
             await EnsureAuthenticatedAsync(cancellationToken);
-            var request = new SearchOrderRequest { AccountId = accountId };
+            var request = new SearchOrderRequest
+            {
+                AccountId = accountId,
+                StartTime = startTime,
+                EndTime = endTime
+            };
             var response = await _restApi.SearchOrdersAsync(request, cancellationToken);
 
             if (!response.Success)
@@ -519,17 +539,29 @@ public class ProjectXApiClient : IProjectXApiClient
             throw new ArgumentException("Account ID must be greater than zero.", nameof(accountId));
         }
 
+        // The gateway's /api/Order/search schema marks startTimestamp required. Sending null let the gateway
+        // apply a window of its own, and an order outside that window came back absent -- which the caller
+        // cannot tell apart from "no such order". Substituting a default window here would reproduce exactly
+        // that, silently, so the call fails instead (gh#57).
+        if (startTime is null)
+        {
+            throw new ArgumentException(
+                "A search window is required: the gateway's /api/Order/search schema marks startTimestamp as " +
+                "required, and an order outside the window it would otherwise choose is returned as absent.",
+                nameof(startTime));
+        }
+
         try
         {
-            _logger.LogDebug("Retrieving orders for account: {AccountId}, StartTime: {StartTime}, EndTime: {EndTime}", 
+            _logger.LogDebug("Retrieving orders for account: {AccountId}, StartTime: {StartTime}, EndTime: {EndTime}",
                 accountId, startTime, endTime);
 
             await EnsureAuthenticatedAsync(cancellationToken);
             var request = new SearchOrderRequest
             {
                 AccountId = accountId,
-                StartTimestamp = startTime,
-                EndTimestamp = endTime
+                StartTime = startTime,
+                EndTime = endTime
             };
             var response = await _restApi.SearchOrdersAsync(request, cancellationToken);
 
@@ -538,7 +570,7 @@ public class ProjectXApiClient : IProjectXApiClient
                 throw new ProjectXApiException($"Failed to retrieve orders: {response.ErrorMessage}", response.ErrorCode);
             }
 
-            _logger.LogInformation("Successfully retrieved {Count} orders for account: {AccountId}", 
+            _logger.LogInformation("Successfully retrieved {Count} orders for account: {AccountId}",
                 response.Orders.Count, accountId);
 
             return response.Orders;

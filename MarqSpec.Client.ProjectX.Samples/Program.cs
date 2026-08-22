@@ -35,7 +35,7 @@ public class Program
         // Validate credentials
         var apiKey = configuration["ProjectX:ApiKey"];
         var apiSecret = configuration["ProjectX:ApiSecret"];
-        
+
         if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(apiSecret))
         {
             Console.ForegroundColor = ConsoleColor.Red;

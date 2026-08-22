@@ -3,29 +3,17 @@ name: Release NuGet Package
 on:
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Package version (e.g., 1.0.0)'
-        required: true
-        type: string
 
-# Least-privilege permissions — jobs may escalate individually if needed.
 permissions:
   contents: read
 
 jobs:
-  # ---------------------------------------------------------------
-  # Gate: pauses execution and requires manual approval from the
-  # "production" environment's required reviewers before any
-  # package is built or published.
-  # ---------------------------------------------------------------
+  # Pauses until the "production" environment's required reviewers approve, before anything is built or
+  # published. A published package cannot be unpublished.
   gate:
     name: Await release approval
     runs-on: ubuntu-latest
     environment: production
-    permissions:
-      contents: read
     steps:
       - name: Release approved
         run: echo "Release approved — proceeding to build and publish."
@@ -34,55 +22,80 @@ jobs:
     name: Build and publish NuGet package
     needs: gate
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: |
-          8.0.x
-          10.0.x
-        
-    - name: Restore dependencies
-      run: dotnet restore
-      
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
+      - uses: actions/checkout@v7
+        with:
+          # MinVer needs tag history. Without this the package would be stamped 0.0.0-alpha.0 and pushed to
+          # nuget.org under that version — silently, because a shallow clone is not an error (ADR-0006).
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
 
-    - name: Test
-      run: dotnet test --no-build --configuration Release --verbosity normal
-      env:
-        ProjectX__ApiKey: ${{ secrets.PROJECTX_API_KEY }}
-        ProjectX__ApiSecret: ${{ secrets.PROJECTX_API_SECRET }}
-      
-    - name: Determine version
-      id: version
-      run: |
-        if [ "${{ github.event_name }}" == "release" ]; then
-          VERSION="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION#v}"
-        else
-          VERSION="${{ github.event.inputs.version }}"
-        fi
-        if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+([.-][a-zA-Z0-9.]+)?$'; then
-          echo "::error::Version '$VERSION' is not a valid semver string (e.g. 1.2.3 or 1.2.3-beta.1)."
-          exit 1
-        fi
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        
-    - name: Pack NuGet package
-      run: dotnet pack MarqSpec.Client.ProjectX/MarqSpec.Client.ProjectX.csproj --no-build --configuration Release --output ./artifacts -p:PackageVersion=${{ steps.version.outputs.version }}
-      
-    - name: Push to NuGet.org
-      run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-      
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: nuget-package
-        path: ./artifacts/*.nupkg
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore MarqSpec.Client.ProjectX.slnx
+
+      - name: Build
+        run: dotnet build MarqSpec.Client.ProjectX.slnx --configuration Release --no-restore
+
+      # No credentials here, deliberately. This step used to pass real API secrets into an UNFILTERED
+      # `dotnet test`, so the live tier was in scope on the release path; that it mostly did not execute was an
+      # accident of hardcoded skip strings, not a design. The fake-gateway tier covers the same ground with
+      # nothing to leak (ADR-0007).
+      - name: Tests
+        run: >-
+          dotnet test MarqSpec.Client.ProjectX.slnx --configuration Release --no-build
+          --filter "Category!=Live"
+
+      - name: Verify the tag matches the package version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          if ! echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Tag '$TAG' is not vMAJOR.MINOR.PATCH. See CONTRIBUTING.md > Releases."
+            exit 1
+          fi
+
+      # No -p:PackageVersion. The tag IS the version, resolved by MinVer from the checked-out ref — which is
+      # what removes the drift that had the csproj claiming 1.0.6 against a released v1.0.5.
+      - name: Pack
+        run: >-
+          dotnet pack MarqSpec.Client.ProjectX/MarqSpec.Client.ProjectX.csproj
+          --configuration Release --no-build --output ./artifacts
+
+      - name: Confirm the resolved version and symbols
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          ls -1 ./artifacts
+          expected="MarqSpec.Client.ProjectX.${TAG#v}.nupkg"
+
+          if [ ! -f "./artifacts/$expected" ]; then
+            echo "::error::Expected $expected but MinVer resolved something else. Is the tag on this commit?"
+            exit 1
+          fi
+          if [ ! -f "./artifacts/MarqSpec.Client.ProjectX.${TAG#v}.snupkg" ]; then
+            echo "::error::No symbol package produced. R-10.3 requires one."
+            exit 1
+          fi
+
+      - name: Push to NuGet.org
+        run: >-
+          dotnet nuget push "./artifacts/*.nupkg"
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-package
+          path: |
+            ./artifacts/*.nupkg
+            ./artifacts/*.snupkg
