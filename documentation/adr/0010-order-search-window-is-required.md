@@ -95,6 +95,16 @@ caller cannot see.
 - ADR-0009's follow-up about `ContractId` / `Status` is resolved here: both are documented as
   serialized-and-ignored, and the fake no longer pretends otherwise.
 
+## Decision log
+
+### Update 2026-08-22 — the configuration follow-ups are closed
+
+gh#69 resolved the first two follow-ups below. Eleven bound-but-unread options were wired; the two that should
+not be wired carry `[Obsolete]` with the reason rather than being removed, since 2.0.0 had just shipped and a
+public removal is a major break. `AutoReconnect: false` now genuinely stops reconnection, and both hub-URL
+spellings resolve so the README's configuration table is no longer a trap. The third follow-up, `net8.0` going
+untested, was closed by gh#66 for the unit tier; the integration tier is tracked in gh#67.
+
 ## Follow-ups
 
 - Ten configuration options are bound and documented but never read (`ValidateSslCertificates`, all of

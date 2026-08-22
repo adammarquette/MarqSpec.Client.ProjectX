@@ -38,6 +38,18 @@ public class ProjectXOptions
     /// <summary>
     /// Gets or sets a value indicating whether SSL certificates should be validated.
     /// </summary>
+    /// <remarks>
+    /// <b>Has no effect. TLS certificate validation is always on and cannot be turned off.</b>
+    /// <para>
+    /// This was bound and documented but never read. It was left unwired deliberately rather than
+    /// implemented: honouring <see langword="false"/> would add a supported way to disable certificate
+    /// validation against a live trading venue, which is a hole this client does not currently have and has no
+    /// reason to open. If a self-signed endpoint must be reached, configure trust at the host rather than
+    /// asking the client to stop checking (gh#69).
+    /// </para>
+    /// </remarks>
+    [Obsolete("Has no effect: TLS certificate validation is always on. Wiring this would add a way to disable " +
+              "certificate validation against a live venue, which is deliberately not offered (gh#69).")]
     public bool ValidateSslCertificates { get; set; } = true;
 
     /// <summary>
