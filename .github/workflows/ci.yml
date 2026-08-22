@@ -64,7 +64,7 @@ jobs:
         run: >-
           dotnet test MarqSpec.Client.ProjectX.Tests/MarqSpec.Client.ProjectX.Tests.csproj
           --configuration Release --no-build
-          --logger "trx;LogFileName=unit-tests.trx"
+          --logger trx
           --collect:"XPlat Code Coverage"
           --results-directory ./TestResults
 
@@ -103,7 +103,7 @@ jobs:
         run: >-
           dotnet test MarqSpec.Client.ProjectX.IntegrationTests/MarqSpec.Client.ProjectX.IntegrationTests.csproj
           --configuration Release --no-build --filter "Category!=Live"
-          --logger "trx;LogFileName=integration-tests.trx"
+          --logger trx
           --results-directory ./TestResults
 
       - name: Upload integration test results
@@ -152,17 +152,35 @@ jobs:
               print(f"Artifact contained:\n{found}")
               sys.exit(1)
 
-          root = ET.parse(reports[0]).getroot()
-          line = float(root.get("line-rate", 0)) * 100
-          branch = float(root.get("branch-rate", 0)) * 100
+          # One report per target framework now that the suite multi-targets (gh#66). Taking reports[0]
+          # would enforce the floor against whichever the glob listed first, so a regression on net8.0 could
+          # hide behind net10.0's number. The floor applies to the WORST framework, and every framework is
+          # printed so a divergence between them is visible rather than averaged away.
+          measured = []
+          for report in sorted(reports):
+              root = ET.parse(report).getroot()
+              measured.append((
+                  report,
+                  float(root.get("line-rate", 0)) * 100,
+                  float(root.get("branch-rate", 0)) * 100,
+              ))
 
-          summary = f"Line coverage {line:.1f}% (floor {floor}%) · branch {branch:.1f}%"
+          for report, line, branch in measured:
+              print(f"{report}: line {line:.1f}%, branch {branch:.1f}%")
+
+          worst_line = min(line for _, line, _ in measured)
+          worst_branch = min(branch for _, _, branch in measured)
+
+          summary = (f"Line coverage {worst_line:.1f}% (floor {floor}%), branch {worst_branch:.1f}% "
+                     f"- lowest of {len(measured)} report(s)")
           print(summary)
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
               handle.write(f"### {summary}\n")
+              for report, line, branch in measured:
+                  handle.write(f"- `{report}` line {line:.1f}%, branch {branch:.1f}%\n")
 
-          if line < floor:
-              print(f"::error::Line coverage {line:.1f}% is below the {floor}% floor.")
+          if worst_line < floor:
+              print(f"::error::Line coverage {worst_line:.1f}% is below the {floor}% floor.")
               sys.exit(1)
 
   pack:

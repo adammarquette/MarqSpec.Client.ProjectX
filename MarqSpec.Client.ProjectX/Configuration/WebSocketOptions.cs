@@ -57,6 +57,17 @@ public class WebSocketOptions
     /// Gets or sets whether to use message pack protocol instead of JSON.
     /// </summary>
     /// <value>Default: false (uses JSON per PRD recommendation)</value>
+    /// <remarks>
+    /// <b>Has no effect. The hubs always speak JSON.</b>
+    /// <para>
+    /// Honouring this needs <c>Microsoft.AspNetCore.SignalR.Protocols.MessagePack</c>, and this library's
+    /// dependency surface is part of its public contract (R-10.5) — a package consumed by trading-copilot does
+    /// not gain a protocol dependency for an option nobody has asked for. The PRD recommends JSON regardless
+    /// (gh#69).
+    /// </para>
+    /// </remarks>
+    [Obsolete("Has no effect: the hubs always use JSON. Enabling MessagePack would add a protocol package to " +
+              "the library's public dependency surface for an option with no consumer (gh#69).")]
     public bool UseMessagePack { get; set; } = false;
 
     /// <summary>
