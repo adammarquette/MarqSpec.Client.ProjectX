@@ -58,9 +58,30 @@ public static class ServiceCollectionExtensions
             options.ApiSecret = ResolveCredential("PROJECTX_API_SECRET", "ProjectX__ApiSecret", options.ApiSecret);
         });
 
-        // Configure WebSocket options
+        // Configure WebSocket options.
+        //
+        // The hub URLs have two documented spellings: ProjectX:WebSocketUserHubUrl (which the library README's
+        // configuration table lists) and ProjectX:WebSocket:UserHubUrl (which is what the client actually read).
+        // Only the second worked, so a consumer following the README to repoint at a simulation venue edited a
+        // dead key, saw no error, and stayed on the production default -- configured-looking and not configured
+        // (gh#69). Both now resolve. The nested, more specific form wins when both are set, so no existing
+        // deployment changes behaviour.
         services.Configure<WebSocketOptions>(options =>
         {
+            var outer = configuration.GetSection(ProjectXOptions.SectionName);
+
+            var userHubUrl = outer["WebSocketUserHubUrl"];
+            if (!string.IsNullOrWhiteSpace(userHubUrl))
+            {
+                options.UserHubUrl = userHubUrl;
+            }
+
+            var marketHubUrl = outer["WebSocketMarketHubUrl"];
+            if (!string.IsNullOrWhiteSpace(marketHubUrl))
+            {
+                options.MarketHubUrl = marketHubUrl;
+            }
+
             configuration.GetSection("ProjectX:WebSocket").Bind(options);
         });
 
@@ -105,10 +126,15 @@ public static class ServiceCollectionExtensions
             })
             .AddStandardResilienceHandler(options =>
             {
-                options.Retry.MaxRetryAttempts = 3;
-                options.Retry.Delay = TimeSpan.FromSeconds(1);
+                // From configuration, not hardcoded. ProjectX:RetryOptions was bound and documented from the
+                // beginning while the pipeline used literals, so tuning it did nothing (gh#69). The defaults on
+                // RetryOptions are the literals that used to be here, so an unconfigured consumer is unaffected.
+                var retry = ReadRetryOptions(configuration);
+
+                options.Retry.MaxRetryAttempts = retry.MaxRetries;
+                options.Retry.Delay = retry.InitialDelay;
                 options.Retry.BackoffType = DelayBackoffType.Exponential;
-                options.Retry.MaxDelay = TimeSpan.FromSeconds(30);
+                options.Retry.MaxDelay = retry.MaxDelay;
                 options.Retry.ShouldHandle = args => new ValueTask<bool>(
                     ShouldRetryOutcome(
                         args.Context.GetRequestMessage(),
@@ -140,6 +166,22 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IProjectXWebSocketClient, ProjectXWebSocketClient>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Reads <c>ProjectX:RetryOptions</c> for the resilience pipeline.
+    /// </summary>
+    /// <remarks>
+    /// Read directly rather than through <see cref="IOptions{TOptions}"/> because
+    /// <see cref="Microsoft.Extensions.Http.Resilience"/> wants its values while the pipeline is being
+    /// registered, before a provider exists to resolve options from. Unset keys fall through to
+    /// <see cref="RetryOptions"/>'s own defaults, which are the literals this used to hardcode.
+    /// </remarks>
+    private static RetryOptions ReadRetryOptions(IConfiguration configuration)
+    {
+        var options = new RetryOptions();
+        configuration.GetSection($"{ProjectXOptions.SectionName}:{nameof(ProjectXOptions.RetryOptions)}").Bind(options);
+        return options;
     }
 
     /// <summary>

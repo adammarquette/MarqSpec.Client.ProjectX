@@ -709,25 +709,58 @@ Thrown when API requests fail. Includes:
 
 ## Configuration Options
 
+Every option below is **read by a code path**. Two are listed as inert on purpose and say why; nothing else here
+is decorative.
+
+All keys sit under the `ProjectX` section.
+
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| ApiKey | string | *required* | Your ProjectX API key |
-| ApiSecret | string | *required* | Your ProjectX API secret |
-| BaseUrl | string | https://api.topstepx.com | Base URL for REST API |
-| WebSocketUserHubUrl | string | https://rtc.topstepx.com/hubs/user | User hub WebSocket URL |
-| WebSocketMarketHubUrl | string | https://rtc.topstepx.com/hubs/market | Market hub WebSocket URL |
-| ValidateSslCertificates | bool | true | Enable SSL certificate validation |
-| RetryOptions.MaxRetries | int | 3 | Maximum retry attempts |
-| RetryOptions.InitialDelay | TimeSpan | 00:00:01 | Initial delay between retries |
-| RetryOptions.MaxDelay | TimeSpan | 00:00:30 | Maximum delay between retries |
-| WebSocket.AutoReconnect | bool | true | Enable automatic reconnection |
-| WebSocket.InitialReconnectDelaySeconds | int | 1 | Initial reconnect backoff delay |
-| WebSocket.MaxReconnectDelaySeconds | int | 5 | Maximum reconnect backoff delay |
-| WebSocket.HandshakeTimeoutSeconds | int | 15 | SignalR handshake timeout |
-| WebSocket.KeepAliveIntervalSeconds | int | 15 | Keep-alive ping interval |
-| WebSocket.ServerTimeoutSeconds | int | 30 | Server timeout before disconnect |
-| WebSocket.UseMessagePack | bool | false | Use MessagePack protocol instead of JSON |
-| WebSocket.MaxBufferSize | long | 1048576 | Max incoming message buffer in bytes (1 MB) |
+| `ApiKey` | string | *required* | Your ProjectX API key |
+| `ApiSecret` | string | *required* | Your ProjectX API secret |
+| `BaseUrl` | string | `https://api.topstepx.com` | Base URL for the REST API |
+| `RetryOptions.MaxRetries` | int | 3 | Retry attempts on a transient fault. Never applies to `POST /api/Order/place` |
+| `RetryOptions.InitialDelay` | TimeSpan | `00:00:01` | First backoff delay |
+| `RetryOptions.MaxDelay` | TimeSpan | `00:00:30` | Backoff ceiling |
+| `WebSocket.UserHubUrl` | string | `https://rtc.topstepx.com/hubs/user` | User hub URL |
+| `WebSocket.MarketHubUrl` | string | `https://rtc.topstepx.com/hubs/market` | Market hub URL |
+| `WebSocket.AutoReconnect` | bool | `true` | `false` stops reconnection entirely |
+| `WebSocket.InitialReconnectDelaySeconds` | int | 1 | First reconnect backoff |
+| `WebSocket.MaxReconnectDelaySeconds` | int | 5 | Reconnect backoff ceiling |
+| `WebSocket.HandshakeTimeoutSeconds` | int | 15 | SignalR handshake timeout |
+| `WebSocket.KeepAliveIntervalSeconds` | int | 15 | Keep-alive ping interval |
+| `WebSocket.ServerTimeoutSeconds` | int | 30 | Server timeout before the connection is considered dead |
+| `WebSocket.MaxBufferSize` | long | 1048576 | Transport and application buffer ceiling, in bytes |
+
+### Pointing at a different venue
+
+The hub URLs have **two accepted spellings**, and both work:
+
+```jsonc
+{
+  "ProjectX": {
+    "WebSocket": {
+      "UserHubUrl":   "https://rtc.example.com/hubs/user",     // preferred
+      "MarketHubUrl": "https://rtc.example.com/hubs/market"
+    },
+    "WebSocketUserHubUrl":   "https://rtc.example.com/hubs/user",   // also honoured
+    "WebSocketMarketHubUrl": "https://rtc.example.com/hubs/market"
+  }
+}
+```
+
+The nested `WebSocket:` form wins when both are set. Through 2.0.0 **only the nested form was read**, while this
+table documented only the outer one — so a consumer following these docs to reach a simulation venue edited a
+key that did nothing and stayed connected to production. Both resolve now.
+
+### Options that intentionally do nothing
+
+| Option | Why |
+|--------|-----|
+| `ValidateSslCertificates` | **TLS validation is always on and cannot be disabled.** Honouring `false` would add a supported way to skip certificate validation against a live trading venue. Trust a self-signed endpoint at the host instead. |
+| `WebSocket.UseMessagePack` | **The hubs always speak JSON.** MessagePack needs a protocol package, and this library's dependency surface is part of its public contract. |
+
+Both are marked `[Obsolete]` and produce a compiler warning; neither has been removed, so nothing breaks.
 
 ## Requirements
 

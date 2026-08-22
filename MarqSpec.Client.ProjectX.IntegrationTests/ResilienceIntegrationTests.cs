@@ -87,6 +87,24 @@ public class ResilienceIntegrationTests : IAsyncLifetime
     /// </summary>
     private static DateTime SearchWindowStart => DateTime.UtcNow.AddDays(-30);
 
+    // gh#69 -- ProjectX:RetryOptions was bound and documented from the beginning while the pipeline used
+    // literals, so tuning it did nothing. Counted at the gateway, because the options are registered under a
+    // name Refit generates and a unit test that guessed it would assert against a default instance and pass.
+    [Fact]
+    public async Task GetOrders_ShouldObeyConfiguredMaxRetries_WhenRetryOptionsAreSet()
+    {
+        await using var services = _gateway.BuildClient(settings => settings["ProjectX:RetryOptions:MaxRetries"] = "1");
+        var client = services.GetRequiredService<IProjectXApiClient>();
+
+        await _gateway.ArmFaultAsync(new { pathSuffix = "/api/Order/search", status = 500, remaining = 99 });
+
+        var act = async () => await client.GetOrdersAsync(FakeGatewayFixture.KnownAccountId, SearchWindowStart);
+        await act.Should().ThrowAsync<Exception>();
+
+        (await _gateway.RequestCountAsync("/api/Order/search"))
+            .Should().Be(2, "MaxRetries=1 means the initial attempt plus one retry, not the hardcoded three");
+    }
+
     /// <summary>The other side of the boundary: an idempotent read must still be retried.</summary>
     [Fact]
     public async Task GetOrders_ShouldRetryAndSucceed_WhenTheFirstAttemptsFail()
