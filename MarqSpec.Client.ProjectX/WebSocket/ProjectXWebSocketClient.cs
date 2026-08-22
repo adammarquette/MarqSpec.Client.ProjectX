@@ -70,8 +70,10 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
             _logger.LogInformation("Connecting to market hub: {Url}", _options.MarketHubUrl);
             UpdateMarketHubState(ConnectionState.Connecting);
 
-            var accessToken = await _authService.GetAccessTokenAsync(cancellationToken);
-            _marketHub = BuildHubConnection(_options.MarketHubUrl, accessToken);
+            // Proves credentials resolve before a connection is attempted; the connection itself gets its
+            // token from AccessTokenProvider, which is re-invoked on every reconnect.
+            await _authService.GetAccessTokenAsync(cancellationToken);
+            _marketHub = BuildHubConnection(_options.MarketHubUrl);
             ConfigureMarketHubHandlers(_marketHub);
 
             await _marketHub.StartAsync(cancellationToken);
@@ -106,8 +108,10 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
             _logger.LogInformation("Connecting to user hub: {Url}", _options.UserHubUrl);
             UpdateUserHubState(ConnectionState.Connecting);
 
-            var accessToken = await _authService.GetAccessTokenAsync(cancellationToken);
-            _userHub = BuildHubConnection(_options.UserHubUrl, accessToken);
+            // Proves credentials resolve before a connection is attempted; the connection itself gets its
+            // token from AccessTokenProvider, which is re-invoked on every reconnect.
+            await _authService.GetAccessTokenAsync(cancellationToken);
+            _userHub = BuildHubConnection(_options.UserHubUrl);
             ConfigureUserHubHandlers(_userHub);
 
             await _userHub.StartAsync(cancellationToken);
@@ -557,22 +561,43 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
 
     #region Private Helper Methods
 
-    private HubConnection BuildHubConnection(string hubUrl, string accessToken)
+    /// <summary>
+    /// Builds a hub connection with every <see cref="WebSocketOptions"/> setting applied.
+    /// </summary>
+    /// <remarks>
+    /// Internal rather than private so the unit suite can assert that the options actually reach the
+    /// connection. <c>HandshakeTimeoutSeconds</c>, <c>KeepAliveIntervalSeconds</c>, <c>ServerTimeoutSeconds</c>
+    /// and <c>MaxBufferSize</c> were all bound, documented and never read (gh#69); a test that only checks
+    /// binding would not have caught that.
+    /// </remarks>
+    internal HubConnection BuildHubConnection(string hubUrl)
     {
-        var builder = new HubConnectionBuilder()
+        var connection = new HubConnectionBuilder()
             .WithUrl(hubUrl, options =>
             {
-                // Use a delegate that fetches a fresh token on each reconnect
+                // A delegate, not a captured token: SignalR calls this again on every reconnect, so the
+                // connection cannot come back up holding a token that expired while it was down.
                 options.AccessTokenProvider = async () => await _authService.GetAccessTokenAsync();
-                options.Headers.Add("Authorization", $"Bearer {accessToken}");
+
+                // Applies to both directions of the transport. Bound and documented since 1.0.x; never read
+                // until gh#69.
+                options.TransportMaxBufferSize = _options.MaxBufferSize;
+                options.ApplicationMaxBufferSize = _options.MaxBufferSize;
             })
             .WithAutomaticReconnect(new ReconnectPolicy(_options))
             .ConfigureLogging(logging =>
             {
                 logging.AddProvider(new LoggerFactoryProvider(_loggerFactory));
-            });
+            })
+            .Build();
 
-        return builder.Build();
+        // Set on the connection rather than the builder: the builder-level extension methods for these
+        // arrived after net8.0, and both target frameworks are first-class (ADR-0005).
+        connection.HandshakeTimeout = TimeSpan.FromSeconds(_options.HandshakeTimeoutSeconds);
+        connection.KeepAliveInterval = TimeSpan.FromSeconds(_options.KeepAliveIntervalSeconds);
+        connection.ServerTimeout = TimeSpan.FromSeconds(_options.ServerTimeoutSeconds);
+
+        return connection;
     }
 
     private void ConfigureMarketHubHandlers(HubConnection connection)
@@ -796,7 +821,16 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
 
     #region Nested Types
 
-    private class ReconnectPolicy : IRetryPolicy
+    /// <summary>
+    /// Reconnect backoff, and the switch that turns reconnection off.
+    /// </summary>
+    /// <remarks>
+    /// Returning <see langword="null"/> tells SignalR to stop retrying, which is how
+    /// <see cref="WebSocketOptions.AutoReconnect"/> is honoured. Previously
+    /// <c>WithAutomaticReconnect</c> was applied unconditionally and the flag only decided whether a log line
+    /// was written, so setting it <see langword="false"/> reconnected anyway (gh#69).
+    /// </remarks>
+    internal sealed class ReconnectPolicy : IRetryPolicy
     {
         private readonly WebSocketOptions _options;
 
@@ -807,7 +841,12 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
 
         public TimeSpan? NextRetryDelay(RetryContext retryContext)
         {
-            // Progressive backoff with max delay of 5 seconds (per PRD requirement)
+            if (!_options.AutoReconnect)
+            {
+                return null;
+            }
+
+            // Progressive backoff, capped (R-4.3).
             var delaySeconds = Math.Min(
                 _options.InitialReconnectDelaySeconds * Math.Pow(2, retryContext.PreviousRetryCount),
                 _options.MaxReconnectDelaySeconds);

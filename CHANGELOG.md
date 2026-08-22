@@ -10,6 +10,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > that can go stale. Its entry moves in the **promotion PR**, not after the release — the 1.0.3–1.0.5 gap below
 > was backfilled precisely because "write it up afterwards" does not survive contact with a merge.
 
+## [Unreleased]
+
+### Changed
+- **Eleven configuration options now do what they say.** All were bound from configuration, listed in the
+  library README, and read by no code path: the three `RetryOptions` values (the pipeline hardcoded `3` / `1s`
+  / `30s`), the four `WebSocket` timeouts and `MaxBufferSize`, and both `ProjectXOptions`-level hub URLs
+  (gh#69)
+- **`WebSocket.AutoReconnect: false` now actually stops reconnection.** `WithAutomaticReconnect` was applied
+  unconditionally and the flag only decided whether a log line was written
+- **Both hub-URL spellings resolve.** `ProjectX:WebSocketUserHubUrl` / `WebSocketMarketHubUrl` now act as a
+  fallback for `ProjectX:WebSocket:UserHubUrl` / `MarketHubUrl`, with the nested form winning when both are
+  set. Only the nested form was ever read, while the README documented only the outer one — so a consumer
+  following the docs to reach a simulation venue edited a dead key, got no error, and **stayed connected to the
+  production TopstepX default**
+- The library README's configuration table now matches the code, including the live hub-URL keys it previously
+  omitted
+
+### Deprecated
+- `ProjectXOptions.ValidateSslCertificates` — **has no effect; TLS validation is always on.** Left unwired
+  deliberately: honouring `false` would add a supported way to disable certificate validation against a live
+  trading venue. Marked `[Obsolete]`, not removed
+- `WebSocketOptions.UseMessagePack` — **has no effect; the hubs always speak JSON.** Wiring it needs a
+  MessagePack protocol package, and this library's dependency surface is part of its public contract (R-10.5).
+  Marked `[Obsolete]`, not removed
+
+### Added
+- The unit suite runs against **`net8.0` as well as `net10.0`** (gh#66). ADR-0005 called both targets
+  first-class; until now only the build was, and the published `net8.0` assembly had never executed a test
+- The coverage gate enforces its floor against the **lowest** of every report rather than an arbitrary one, so
+  a regression on one target framework cannot hide behind another
+
 ## [2.0.0] - 2026-08-22
 
 > **This is the first release published to nuget.org since 1.0.4.** `v1.0.5` was tagged and a GitHub release
