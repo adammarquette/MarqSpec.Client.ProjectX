@@ -66,6 +66,14 @@ either blocks everything or trains people to bypass. The gate is *checks*, not a
   pin in trading-copilot is a SHA, so the parent is unaffected.
 - Until the CI work lands, `ci.yml` still triggers on `master`/`main`, so **a PR into `develop` gets no checks
   at all**. The rulesets require a PR but cannot require a check that does not exist yet. Transitional.
+- **`staging` and `main` are permanently "ahead" of `develop`, and that is not drift.** A promotion's merge
+  commit is created on the *target* branch, and the ladder is one-way, so `develop` never receives it. The gap
+  grows by two commits per release and never resets — seven by the 2.1.0 release, one for each promotion — while
+  the content stays identical. Commit counts are the wrong instrument here; compare trees:
+  `git rev-parse origin/develop^{tree} origin/staging^{tree} origin/main^{tree} | sort -u | wc -l`, where `1`
+  means all three hold the same content. **Do not back-merge `main` into `develop` to flatten the number.** It
+  would contradict the one-way promotion this ADR exists to enforce, the ladder check would not stop it (only
+  `staging` and `main` constrain their source), and it fixes a display rather than a problem.
 - The repo-settings half of this decision — rulesets, merge methods, labels — **exists only in GitHub settings**.
   That is precisely how the previous ruleset came to be disabled and unnoticed, so it is recorded here, and a
   `bootstrap.sh` reproduces it for the next repo rather than leaving it to be re-clicked.
