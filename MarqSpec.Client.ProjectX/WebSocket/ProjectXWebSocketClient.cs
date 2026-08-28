@@ -600,45 +600,77 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         return connection;
     }
 
+    /// <summary>
+    /// Applies the hub <paramref name="contractId"/> to a quote and raises
+    /// <see cref="PriceUpdateReceived"/>. Visible to unit tests (gh#86).
+    /// </summary>
+    internal void HandleGatewayQuote(string contractId, PriceUpdate? update)
+    {
+        if (update is null)
+        {
+            return;
+        }
+
+        update.ContractId = contractId;
+        _logger.LogTrace("Received price update for contract {ContractId} symbol {Symbol}", contractId, update.Symbol);
+        PriceUpdateReceived?.Invoke(this, update);
+    }
+
+    /// <summary>
+    /// Applies the hub <paramref name="contractId"/> to each depth row and raises
+    /// <see cref="OrderBookUpdateReceived"/>. Visible to unit tests (gh#86).
+    /// </summary>
+    internal void HandleGatewayDepth(string contractId, OrderBookUpdate[]? updates)
+    {
+        foreach (var update in updates ?? [])
+        {
+            if (update is null)
+            {
+                continue;
+            }
+
+            update.ContractId = contractId;
+            _logger.LogTrace(
+                "Received DOM update for contract {ContractId} type {Type} at price {Price}",
+                contractId,
+                update.Type,
+                update.Price);
+            OrderBookUpdateReceived?.Invoke(this, update);
+        }
+    }
+
+    /// <summary>
+    /// Applies the hub <paramref name="contractId"/> to each trade and raises
+    /// <see cref="TradeUpdateReceived"/>. Visible to unit tests (gh#86).
+    /// </summary>
+    internal void HandleGatewayTrade(string contractId, TradeUpdate[]? updates)
+    {
+        foreach (var update in updates ?? [])
+        {
+            if (update is null)
+            {
+                continue;
+            }
+
+            update.ContractId = contractId;
+            _logger.LogTrace(
+                "Received trade update for contract {ContractId} symbol {SymbolId}",
+                contractId,
+                update.SymbolId);
+            TradeUpdateReceived?.Invoke(this, update);
+        }
+    }
+
     private void ConfigureMarketHubHandlers(HubConnection connection)
     {
         // Price/Quote updates - server sends (contractId, data)
-        connection.On<string, PriceUpdate>("GatewayQuote", (contractId, update) =>
-        {
-            if (update == null)
-            {
-                return;
-            }
-
-            _logger.LogTrace("Received price update for symbol: {Symbol}", update.Symbol);
-            PriceUpdateReceived?.Invoke(this, update);
-        });
+        connection.On<string, PriceUpdate>("GatewayQuote", HandleGatewayQuote);
 
         // Order book/Depth updates - server sends (contractId, data[])
-        connection.On<string, OrderBookUpdate[]>("GatewayDepth", (contractId, updates) =>
-        {
-            foreach (var update in updates ?? [])
-            {
-                if (update != null)
-                {
-                    _logger.LogTrace("Received DOM update type: {Type} at price: {Price}", update.Type, update.Price);
-                    OrderBookUpdateReceived?.Invoke(this, update);
-                }
-            }
-        });
+        connection.On<string, OrderBookUpdate[]>("GatewayDepth", HandleGatewayDepth);
 
         // Trade updates - server sends (contractId, data[])
-        connection.On<string, TradeUpdate[]>("GatewayTrade", (contractId, updates) =>
-        {
-            foreach (var update in updates ?? [])
-            {
-                if (update != null)
-                {
-                    _logger.LogTrace("Received trade update for symbol: {SymbolId}", update.SymbolId);
-                    TradeUpdateReceived?.Invoke(this, update);
-                }
-            }
-        });
+        connection.On<string, TradeUpdate[]>("GatewayTrade", HandleGatewayTrade);
 
         // Connection lifecycle
         connection.Closed += async (error) =>

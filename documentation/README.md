@@ -39,6 +39,7 @@ nothing is rewritten in place. Records grow by dated `## Update` entries under a
 | [0006](adr/0006-tag-driven-versioning.md) | 0.6K | Cutting a release, or looking for `<Version>` and not finding it |
 | [0007](adr/0007-local-test-environment.md) | 0.8K | Working on the fake gateway, compose, or the integration tier |
 | [0008](adr/0008-branch-ladder-and-governance.md) | 0.7K | Anything about branches, merge methods, rulesets or labels |
+| [0011](adr/0011-trade-direction-is-nullable.md) | 0.7K | Changing `TradeLogType` or market-hub `ContractId` stamping |
 
 ## Role contracts — `agents/`
 

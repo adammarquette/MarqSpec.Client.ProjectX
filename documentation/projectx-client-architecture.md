@@ -117,7 +117,11 @@ resolution** rather than at first call (R-1.4).
 
 Callbacks are re-surfaced as .NET events — `PriceUpdateReceived`, `OrderBookUpdateReceived`,
 `TradeUpdateReceived`, `AccountUpdateReceived`, `OrderUpdateReceived`, `PositionUpdateReceived`,
-`TradeNotificationReceived` — plus `ConnectionStatusChanged` and `MessageSendFailed`.
+`TradeNotificationReceived` — plus `ConnectionStatusChanged` and `MessageSendFailed`. Market-hub
+handlers receive `(contractId, payload)` and stamp `contractId` onto `PriceUpdate`,
+`OrderBookUpdate` and `TradeUpdate` before raising; the payload symbol is a product root and depth
+has no symbol at all (R-5.7, gh#86). `TradeUpdate.Type` is nullable so an omitted wire `type`
+cannot be read as Buy (R-5.8).
 
 `AccessTokenProvider` re-fetches a **fresh** token on every reconnect rather than closing over the one captured
 at construction; replaying an expired token is how a reconnect loop turns into an auth-failure loop.
