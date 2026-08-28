@@ -203,14 +203,14 @@ public class MarketDataService : IAsyncDisposable
 
         _wsClient.OrderBookUpdateReceived += (sender, update) =>
         {
-            _logger.LogInformation("{Contract} Book: {Bids} bids, {Asks} asks (seq {Seq})",
-                update.ContractId, update.Bids.Count, update.Asks.Count, update.SequenceNumber);
+            _logger.LogInformation("{Contract} Depth: {Type} {Price} x {Volume}",
+                update.ContractId, update.Type, update.Price, update.Volume);
         };
 
         _wsClient.TradeUpdateReceived += (sender, update) =>
         {
-            _logger.LogInformation("{Contract} Trade: {Price} x {Qty} ({Side})",
-                update.ContractId, update.Price, update.Quantity, update.Side);
+            _logger.LogInformation("{Contract} Trade: {Price} x {Volume} ({Type})",
+                update.ContractId, update.Price, update.Volume, update.Type);
         };
 
         // Connect and subscribe
@@ -412,7 +412,8 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `Symbol` | `string` | Symbol ID (e.g. `"F.US.EP"`) |
+| `ContractId` | `string` | Contract the market hub bound this event to (e.g. `"CON.F.US.EP.Z26"`). Stamped from the hub argument, not the JSON payload |
+| `Symbol` | `string` | Product-root symbol ID (e.g. `"F.US.EP"`) |
 | `SymbolName` | `string?` | Friendly symbol name |
 | `LastPrice` | `decimal` | Last traded price |
 | `BestBid` | `decimal` | Best bid price |
@@ -428,25 +429,27 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 
 #### OrderBookUpdate
 
+A single DOM (depth-of-market) row from `GatewayDepth`, not a full book snapshot.
+
 | Property | Type | Description |
 |----------|------|-------------|
-| `ContractId` | `string` | Contract identifier |
-| `Bids` | `List<OrderBookLevel>` | Bid price levels (price + quantity) |
-| `Asks` | `List<OrderBookLevel>` | Ask price levels (price + quantity) |
+| `ContractId` | `string` | Contract the market hub bound this event to. Stamped from the hub argument; the payload has no symbol |
 | `Timestamp` | `DateTime` | Update timestamp |
-| `SequenceNumber` | `long` | Sequence number for ordering |
+| `Type` | `DomType` | DOM entry type (`Ask`, `Bid`, `BestAsk`, …) |
+| `Price` | `decimal` | Price level |
+| `Volume` | `decimal` | Total volume at this price level |
+| `CurrentVolume` | `int` | Current (delta) volume at this price level |
 
 #### TradeUpdate
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `ContractId` | `string` | Contract identifier |
-| `TradeId` | `long` | Unique trade identifier |
+| `ContractId` | `string` | Contract the market hub bound this event to. Stamped from the hub argument; `SymbolId` is the product root |
+| `SymbolId` | `string` | Product-root symbol ID (e.g. `"F.US.EP"`) |
 | `Price` | `decimal` | Trade price |
-| `Quantity` | `int` | Trade quantity |
-| `Side` | `TradeSide` | `Buy` or `Sell` |
 | `Timestamp` | `DateTime` | Trade timestamp |
-| `IsAggressive` | `bool` | Whether the trade was aggressive (taker) |
+| `Type` | `TradeLogType?` | `Buy` (wire `0`) or `Sell` (wire `1`). `null` when the venue omitted or sent an unrecognised `type` |
+| `Volume` | `decimal` | Trade volume |
 
 #### OrderUpdate
 
@@ -477,14 +480,6 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 | `Timestamp` | `DateTime` | When the state change occurred |
 | `ErrorMessage` | `string?` | Error description (if error-related) |
 | `Exception` | `Exception?` | Exception that caused the change (if any) |
-
-#### OrderBookLevel
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `Price` | `decimal` | Price level |
-| `Quantity` | `decimal` | Quantity at this price level |
-| `OrderCount` | `int` | Number of orders at this level |
 
 ### Enums
 
@@ -532,12 +527,14 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 | `Bid` (0) | Buy order |
 | `Ask` (1) | Sell order |
 
-#### TradeSide
+#### TradeLogType
 
 | Value | Description |
 |-------|-------------|
-| `Buy` | Buy side trade |
-| `Sell` | Sell side trade |
+| `Buy` (0) | Buy-side print. This is the live wire value — do not treat `0` as "unknown" |
+| `Sell` (1) | Sell-side print |
+
+`TradeUpdate.Type` is `TradeLogType?`. `null` means the venue omitted `type` or sent a value that is neither `0` nor `1`.
 
 #### PositionType
 

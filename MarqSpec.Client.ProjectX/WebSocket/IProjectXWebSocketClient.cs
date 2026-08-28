@@ -114,17 +114,21 @@ public interface IProjectXWebSocketClient : IAsyncDisposable
     #region Market Data Events
 
     /// <summary>
-    /// Occurs when a price update is received.
+    /// Occurs when a price update is received. <see cref="PriceUpdate.ContractId"/>
+    /// is the hub argument the event was bound to (R-5.7).
     /// </summary>
     event EventHandler<PriceUpdate>? PriceUpdateReceived;
 
     /// <summary>
-    /// Occurs when an order book update is received.
+    /// Occurs when an order book (DOM) update is received.
+    /// <see cref="OrderBookUpdate.ContractId"/> is the hub argument the event
+    /// was bound to (R-5.7).
     /// </summary>
     event EventHandler<OrderBookUpdate>? OrderBookUpdateReceived;
 
     /// <summary>
-    /// Occurs when a trade update is received.
+    /// Occurs when a trade update is received. <see cref="TradeUpdate.ContractId"/>
+    /// is the hub argument the event was bound to (R-5.7).
     /// </summary>
     event EventHandler<TradeUpdate>? TradeUpdateReceived;
 
