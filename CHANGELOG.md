@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > that can go stale. Its entry moves in the **promotion PR**, not after the release — the 1.0.3–1.0.5 gap below
 > was backfilled precisely because "write it up afterwards" does not survive contact with a merge.
 
+## [Unreleased]
+
+### Breaking changes
+
+**Response `Side` is now `OrderSide?`** ([ADR-0012](documentation/adr/0012-order-side-is-nullable.md),
+gh#83). An omitted `side` deserialised as `Bid`, indistinguishable from an explicit buy. `Order.Side`,
+`HalfTrade.Side`, `OrderUpdate.Side` and `TradeNotification.Side` are nullable so absence is `null`.
+`OrderSide.Bid` / `Ask` keep their wire values (`0` / `1`). `PlaceOrderRequest.Side` stays required.
+
+The next published tag that includes this change is a **major**. No file declares a version
+([ADR-0006](documentation/adr/0006-tag-driven-versioning.md)).
+
+### Fixed
+
+- An omitted `side` on order and trade responses no longer binds to `Bid` (gh#83)
+
 ## [2.1.0] - 2026-08-22
 
 ### Changed
