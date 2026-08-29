@@ -1,0 +1,29 @@
+name: "MarqSpec.Client.ProjectX"
+
+# gh#59 — why this one rule is excluded, and why only this one.
+#
+# cs/cleartext-storage-of-sensitive-information flags an `int accountId` in a
+# structured ILogger template as a credential: the identifier contains
+# "account", and a log sink counts as "storage". The hits are in
+# ProjectXApiClient.cs and ProjectXWebSocketClient.cs. Those values are venue
+# account handles, not secrets. The coding contract names what must never be
+# logged — the API key, the API secret, the bearer token, and any body that
+# carries them. None of those appear at the flagged sites.
+#
+# Dismissal does not survive a line-shift. gh#58 went red on pre-existing
+# alerts solely because the diff moved code around them. A gate that fails
+# for reasons unrelated to the change is a gate people learn to click past.
+#
+# query-filters select which queries run, not which results to keep: they
+# cannot attach a path to a query id. `paths-ignore` is a no-op on this
+# compiled C# job (manual build). So the narrowest form this file can
+# express is "drop this one rule, keep every other query". That is a rule
+# exclusion, not a file exclusion and not a scanner disable.
+#
+# Do not add `paths-ignore` for those two files — that would hide other
+# findings on the order-placement and hub-reconnect paths. Do not add a
+# second query id here without writing the same kind of reason.
+
+query-filters:
+  - exclude:
+      id: cs/cleartext-storage-of-sensitive-information
