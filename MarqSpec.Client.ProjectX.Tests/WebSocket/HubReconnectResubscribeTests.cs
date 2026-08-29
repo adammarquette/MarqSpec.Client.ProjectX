@@ -201,6 +201,189 @@ public class HubReconnectResubscribeTests
     }
 
     [Fact]
+    public async Task HandleUserHubReconnectedAsync_ShouldNotPublishConnected_UntilRestorationHasBeenAttempted()
+    {
+        var hub = new FakeHubConnection();
+        var client = CreateClient(hub);
+        var connectedDuringRestore = false;
+
+        hub.ConnectedDuringInvoke = invokeCount =>
+        {
+            if (invokeCount > 1)
+            {
+                connectedDuringRestore = client.UserHubState == ConnectionState.Connected;
+            }
+        };
+
+        await client.ConnectUserHubAsync();
+        await client.SubscribeToOrderUpdatesAsync(AccountId);
+        hub.InvokeCount.Should().Be(1);
+
+        await hub.RaiseReconnectingAsync(new InvalidOperationException("connection dropped"));
+        client.UserHubState.Should().Be(ConnectionState.Reconnecting);
+
+        await hub.RaiseReconnectedAsync("new-connection-id");
+
+        hub.InvokeCount.Should().Be(2);
+        connectedDuringRestore.Should().BeFalse(
+            "Connected must not be published while restore is still invoking subscribe methods");
+        client.UserHubState.Should().Be(ConnectionState.Connected);
+    }
+
+    [Fact]
+    public async Task HandleUserHubReconnectedAsync_ShouldNotReinvokeUnsubscribedAccounts_WhenTheConnectionIdChanges()
+    {
+        var hub = new FakeHubConnection();
+        var client = CreateClient(hub);
+        const int otherAccount = 99;
+
+        await client.ConnectUserHubAsync();
+        await client.SubscribeToOrderUpdatesAsync(AccountId);
+        await client.SubscribeToOrderUpdatesAsync(otherAccount);
+        await client.UnsubscribeFromOrderUpdatesAsync(AccountId);
+
+        var beforeReconnect = hub.Invocations.Count;
+        await hub.RaiseReconnectedAsync("new-connection-id");
+        var restored = hub.Invocations.Skip(beforeReconnect).ToList();
+
+        restored.Should().ContainSingle(
+            i => i.Method == "SubscribeOrders" && Account(i) == otherAccount);
+        restored.Should().NotContain(i => Account(i) == AccountId);
+    }
+
+    [Fact]
+    public async Task HandleUserHubReconnectedAsync_ShouldNotReinvokeASubscribe_WhenTheOriginalInvokeFailed()
+    {
+        var hub = new FakeHubConnection();
+        var client = CreateClient(hub);
+        hub.ThrowOnInvoke(new InvalidOperationException("subscribe rejected"));
+
+        await client.ConnectUserHubAsync();
+        var act = () => client.SubscribeToOrderUpdatesAsync(AccountId);
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        hub.InvokeCount.Should().Be(1);
+
+        await hub.RaiseReconnectedAsync("new-connection-id");
+
+        hub.InvokeCount.Should().Be(1, "a failed subscribe is not recorded and must not be replayed on reconnect");
+        client.UserHubState.Should().Be(ConnectionState.Connected);
+    }
+
+    [Fact]
+    public async Task ConnectUserHubAsync_ShouldRestoreRecordedSubscriptionsBeforePublishingConnected_WhenCalledAfterAFailedRestore()
+    {
+        var first = new FakeHubConnection();
+        var second = new FakeHubConnection();
+        var client = CreateClient(first, second);
+        var connectedDuringRestore = false;
+
+        first.QueueInvokeResult(Task.CompletedTask);
+        first.QueueInvokeResult(Task.FromException(new InvalidOperationException("hub rejected resubscribe")));
+
+        await client.ConnectUserHubAsync();
+        await client.SubscribeToOrderUpdatesAsync(AccountId);
+        await first.RaiseReconnectedAsync("new-connection-id");
+        client.UserHubState.Should().Be(ConnectionState.Failed);
+        client.UserSubscriptions.OrderAccountIds.Should().Equal(AccountId);
+
+        second.ConnectedDuringInvoke = _ =>
+        {
+            connectedDuringRestore = client.UserHubState == ConnectionState.Connected;
+        };
+
+        var statesAfterReconnect = new List<ConnectionState>();
+        client.ConnectionStatusChanged += (_, change) => statesAfterReconnect.Add(change.CurrentState);
+
+        await client.ConnectUserHubAsync();
+
+        first.Disposed.Should().BeTrue("the hub that failed restore must not be leaked");
+        second.Invocations.Should().ContainSingle(i => i.Method == "SubscribeOrders" && Account(i) == AccountId);
+        connectedDuringRestore.Should().BeFalse();
+        statesAfterReconnect.Should().Contain(ConnectionState.Connected);
+        client.UserHubState.Should().Be(ConnectionState.Connected);
+        client.UserSubscriptions.OrderAccountIds.Should().Equal(AccountId);
+    }
+
+    [Fact]
+    public async Task ConnectMarketHubAsync_ShouldRestoreRecordedSubscriptionsBeforePublishingConnected_WhenCalledAfterAFailedRestore()
+    {
+        var first = new FakeHubConnection();
+        var second = new FakeHubConnection();
+        var client = CreateClient(first, second);
+
+        first.QueueInvokeResult(Task.CompletedTask);
+        first.QueueInvokeResult(Task.FromException(new InvalidOperationException("hub rejected resubscribe")));
+
+        await client.ConnectMarketHubAsync();
+        await client.SubscribeToPriceUpdatesAsync(Contract);
+        await first.RaiseReconnectedAsync("new-connection-id");
+        client.MarketHubState.Should().Be(ConnectionState.Failed);
+
+        await client.ConnectMarketHubAsync();
+
+        first.Disposed.Should().BeTrue();
+        second.Invocations.Should().ContainSingle(i => i.Method == "SubscribeContractQuotes" && ContractId(i) == Contract);
+        client.MarketHubState.Should().Be(ConnectionState.Connected);
+        client.MarketSubscriptions.PriceContractIds.Should().Equal(Contract);
+    }
+
+    [Fact]
+    public async Task ConnectUserHubAsync_ShouldNotPublishConnected_WhenRestoreOnTheReplacementHubFails()
+    {
+        var first = new FakeHubConnection();
+        var second = new FakeHubConnection();
+        var client = CreateClient(first, second);
+        WebSocketMessageFailedEventArgs? failed = null;
+
+        first.QueueInvokeResult(Task.CompletedTask);
+        first.QueueInvokeResult(Task.FromException(new InvalidOperationException("first restore failed")));
+        second.QueueInvokeResult(Task.FromException(new InvalidOperationException("second restore failed")));
+
+        await client.ConnectUserHubAsync();
+        await client.SubscribeToOrderUpdatesAsync(AccountId);
+        await first.RaiseReconnectedAsync("new-connection-id");
+
+        client.MessageSendFailed += (_, args) => failed = args;
+        var act = () => client.ConnectUserHubAsync();
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*second restore failed*");
+
+        failed.Should().NotBeNull();
+        failed!.HubName.Should().Be("User");
+        client.UserHubState.Should().Be(ConnectionState.Failed);
+        client.UserHubState.Should().NotBe(ConnectionState.Connected);
+    }
+
+    [Fact]
+    public async Task ConnectUserHubAsync_ShouldWaitForInFlightRestore_WhenCalledDuringReconnecting()
+    {
+        var hub = new FakeHubConnection();
+        var client = CreateClient(hub);
+        var restoreGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await client.ConnectUserHubAsync();
+        await client.SubscribeToOrderUpdatesAsync(AccountId);
+        hub.StartCount.Should().Be(1);
+
+        hub.QueueInvokeResult(restoreGate.Task);
+        await hub.RaiseReconnectingAsync(new InvalidOperationException("connection dropped"));
+
+        var restoreTask = hub.RaiseReconnectedAsync("new-connection-id");
+        await WaitUntilAsync(() => hub.InvokeCount >= 2);
+
+        var connectTask = client.ConnectUserHubAsync();
+        await Task.Delay(50);
+        connectTask.IsCompleted.Should().BeFalse("Connect* must wait on the hub lock held by restore");
+
+        restoreGate.SetResult();
+        await restoreTask;
+        await connectTask;
+
+        hub.StartCount.Should().Be(1, "a successful in-flight restore already left the hub Connected");
+        client.UserHubState.Should().Be(ConnectionState.Connected);
+        hub.Invocations.Where(i => i.Method == "SubscribeOrders").Should().HaveCount(2);
+    }
+
+    [Fact]
     public async Task MarketSubscriptions_ShouldIncludeContract_WhenSubscribeToPriceUpdatesAsyncSucceeds()
     {
         var hub = new FakeHubConnection();
@@ -248,15 +431,27 @@ public class HubReconnectResubscribeTests
         client.MarketSubscriptions.PriceContractIds.Should().BeEmpty();
     }
 
-    private static ProjectXWebSocketClient CreateClient(FakeHubConnection hub)
+    private static ProjectXWebSocketClient CreateClient(params FakeHubConnection[] hubs)
     {
+        var remaining = new Queue<FakeHubConnection>(hubs);
         var client = new ProjectXWebSocketClient(
             A.Fake<IAuthenticationService>(),
             Options.Create(new WebSocketOptions()),
             A.Fake<ILoggerFactory>(),
             A.Fake<ILogger<ProjectXWebSocketClient>>());
-        client.HubConnectionFactory = _ => hub;
+        client.HubConnectionFactory = _ => remaining.Dequeue();
         return client;
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
+        while (!condition() && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        condition().Should().BeTrue("the condition should become true before the wait expires");
     }
 
     private static Task SubscribeMarketAsync(ProjectXWebSocketClient client, string hubMethod, string contractId) =>

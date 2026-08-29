@@ -1,7 +1,8 @@
 namespace MarqSpec.Client.ProjectX.WebSocket;
 
 /// <summary>
-/// Market-hub subscriptions this client will restore after an automatic reconnect (R-5.3, gh#87).
+/// Recorded market-hub subscribe intent this client will try to restore after
+/// connect or automatic reconnect (R-5.3, gh#87). Not live server state.
 /// </summary>
 public sealed class MarketHubSubscriptions
 {

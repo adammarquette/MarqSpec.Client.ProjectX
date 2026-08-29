@@ -26,14 +26,16 @@ public interface IProjectXWebSocketClient : IAsyncDisposable
     ConnectionState UserHubState { get; }
 
     /// <summary>
-    /// Gets a snapshot of market-hub subscriptions that will be restored after
-    /// an automatic reconnect (R-5.3).
+    /// Gets recorded market-hub subscribe intent (R-5.3). This is what the next
+    /// connect or automatic reconnect will try to restore, not a guarantee the
+    /// server is currently delivering.
     /// </summary>
     MarketHubSubscriptions MarketSubscriptions { get; }
 
     /// <summary>
-    /// Gets a snapshot of user-hub subscriptions that will be restored after
-    /// an automatic reconnect (R-5.3).
+    /// Gets recorded user-hub subscribe intent (R-5.3). This is what the next
+    /// connect or automatic reconnect will try to restore, not a guarantee the
+    /// server is currently delivering.
     /// </summary>
     UserHubSubscriptions UserSubscriptions { get; }
 
