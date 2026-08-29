@@ -72,6 +72,15 @@ runs, and the gateway offers no such thing anyway.
   gives a reproducible toolchain, which sidesteps Windows intermittently blocking freshly built unsigned
   assemblies.
 
+## Decision log
+
+### 2026-08-28 — Abort a named hub (gh#92)
+
+`POST /_control/abort/{hub}` drops every live connection on `market` or `user` independently. SignalR
+automatic reconnect then gets a new connection id and group membership is gone, which is the path
+gh#87's unit fake could not force. `_control/emit/*` targets the subscribe group, not `Clients.All`,
+so a reconnect that never re-subscribes stays silent.
+
 ## Follow-ups
 
 - Consider publishing the fake gateway as its own package so trading-copilot can retire
