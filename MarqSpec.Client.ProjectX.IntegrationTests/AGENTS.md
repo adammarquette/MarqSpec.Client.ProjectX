@@ -65,7 +65,11 @@ runs.
   delay. It is consumed per matching request, so "fail the next 3" means exactly 3.
 - `_control/requests?path=…` is the request count. This is the assertion that proves a retry happened — or, for
   `/api/Order/place`, that it did not.
-- `_control/emit/*` pushes hub events.
+- `_control/emit/*` pushes hub events to the **subscribe group**, not every connection — a reconnect
+  that never re-subscribes stays silent.
+- `_control/abort/{hub}` drops every live connection on `market` or `user` so SignalR automatic
+  reconnect gets a new connection id and group membership is gone. `_control/state.hubConnections`
+  lists the ids still attached.
 
 **When the fake and `swagger.json` disagree, the swagger wins and the fake is the defect.** The fake exists to
 make the client's behaviour observable, not to define the contract. A fake that is wrong *in the client's
