@@ -460,7 +460,7 @@ A single DOM (depth-of-market) row from `GatewayDepth`, not a full book snapshot
 | `ContractId` | `string` | Contract identifier |
 | `Status` | `OrderStatus` | Current order status |
 | `Type` | `OrderType` | Order type (Market, Limit, Stop, etc.) |
-| `Side` | `OrderSide` | Order side (Bid/Ask) |
+| `Side` | `OrderSide?` | `Bid` (wire `0`) or `Ask` (wire `1`). `null` when the venue omitted `side` |
 | `Size` | `int` | Total order size |
 | `FilledQuantity` | `int` | Quantity filled so far |
 | `RemainingQuantity` | `int` | Quantity remaining |
@@ -524,8 +524,10 @@ A single DOM (depth-of-market) row from `GatewayDepth`, not a full book snapshot
 
 | Value | Description |
 |-------|-------------|
-| `Bid` (0) | Buy order |
+| `Bid` (0) | Buy order. This is the live wire value — do not treat `0` as "unset" |
 | `Ask` (1) | Sell order |
+
+`Order.Side`, `HalfTrade.Side`, `OrderUpdate.Side` and `TradeNotification.Side` are `OrderSide?`. `null` means the venue omitted `side`. `PlaceOrderRequest.Side` stays required.
 
 #### TradeLogType
 
@@ -593,7 +595,7 @@ A single DOM (depth-of-market) row from `GatewayDepth`, not a full book snapshot
 | `UpdateTimestamp` | `DateTime?` | When the order was last updated |
 | `Status` | `OrderStatus` | Current order status |
 | `Type` | `OrderType` | Order type |
-| `Side` | `OrderSide` | Order side (Bid/Ask) |
+| `Side` | `OrderSide?` | `Bid` (wire `0`) or `Ask` (wire `1`). `null` when the venue omitted `side` |
 | `Size` | `int` | Order quantity |
 | `LimitPrice` | `decimal?` | Limit price (for limit orders) |
 | `StopPrice` | `decimal?` | Stop price (for stop orders) |
@@ -625,7 +627,7 @@ A single DOM (depth-of-market) row from `GatewayDepth`, not a full book snapshot
 | `Price` | `decimal` | Execution price |
 | `ProfitAndLoss` | `decimal?` | Realized P&L for this trade leg |
 | `Fees` | `decimal` | Fees charged |
-| `Side` | `OrderSide` | Trade side (Bid = buy, Ask = sell) |
+| `Side` | `OrderSide?` | `Bid` (buy) or `Ask` (sell). `null` when the venue omitted `side` |
 | `Size` | `int` | Number of contracts traded |
 | `Voided` | `bool` | Whether this trade has been voided |
 | `OrderId` | `long` | ID of the order that generated this trade |

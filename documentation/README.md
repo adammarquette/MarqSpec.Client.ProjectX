@@ -40,6 +40,7 @@ nothing is rewritten in place. Records grow by dated `## Update` entries under a
 | [0007](adr/0007-local-test-environment.md) | 0.8K | Working on the fake gateway, compose, or the integration tier |
 | [0008](adr/0008-branch-ladder-and-governance.md) | 0.7K | Anything about branches, merge methods, rulesets or labels |
 | [0011](adr/0011-trade-direction-is-nullable.md) | 0.7K | Changing `TradeLogType` or market-hub `ContractId` stamping |
+| [0012](adr/0012-order-side-is-nullable.md) | 0.7K | Changing `OrderSide` or response `Side` nullability |
 
 ## Role contracts — `agents/`
 

@@ -32,6 +32,7 @@ obvious thing", or when a change would break a consumer. Routine implementation 
 | [0009](0009-search-order-window-rename.md) | `SearchOrderRequest` window fields are renamed, and 2.0.0 is the cost | Superseded by [0010](0010-order-search-window-is-required.md) |
 | [0010](0010-order-search-window-is-required.md) | The order-search window is required, and the DTO rename is reverted | Accepted, supersedes [0009](0009-search-order-window-rename.md) |
 | [0011](0011-trade-direction-is-nullable.md) | Trade direction stays on the wire numbers; absence is null | Accepted |
+| [0012](0012-order-side-is-nullable.md) | Order side stays on the wire numbers; absence is null | Accepted |
 
 *Adding a record? Add its row here in the same PR, and add a routing entry in
 [`../README.md`](../README.md) if the corpus shape changes.*
