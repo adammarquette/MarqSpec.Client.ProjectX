@@ -99,6 +99,29 @@ public sealed class FakeGatewayFixture : IAsyncLifetime
         return payload?.HubSubscriptions ?? [];
     }
 
+    /// <summary>Live SignalR connection ids on <paramref name="hub"/> ("market" or "user").</summary>
+    public async Task<IReadOnlyList<string>> HubConnectionIdsAsync(string hub)
+    {
+        var payload = await Control.GetFromJsonAsync<ControlState>("/_control/state");
+        if (payload?.HubConnections is null)
+        {
+            return [];
+        }
+
+        return string.Equals(hub, "user", StringComparison.OrdinalIgnoreCase)
+            ? payload.HubConnections.User ?? []
+            : payload.HubConnections.Market ?? [];
+    }
+
+    /// <summary>Aborts every live connection on the named hub so automatic reconnect gets a new connection id.</summary>
+    public async Task<int> AbortHubAsync(string hub)
+    {
+        using var response = await Control.PostAsync($"/_control/abort/{hub}", content: null);
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<AbortResult>();
+        return payload?.Aborted ?? 0;
+    }
+
     /// <summary>Posts to a <c>/_control/emit/*</c> route.</summary>
     public async Task EmitAsync(string route, object payload)
     {
@@ -148,9 +171,14 @@ public sealed class FakeGatewayFixture : IAsyncLifetime
 
     private sealed record RequestCount(string Path, int Count);
 
+    private sealed record AbortResult(string Hub, int Aborted);
+
     private sealed record ControlState(
         IReadOnlyList<string> HubTokensSeen,
-        IReadOnlyList<string> HubSubscriptions);
+        IReadOnlyList<string> HubSubscriptions,
+        HubConnectionsState? HubConnections);
+
+    private sealed record HubConnectionsState(IReadOnlyList<string>? Market, IReadOnlyList<string>? User);
 }
 
 /// <summary>Shares one gateway across a test class.</summary>

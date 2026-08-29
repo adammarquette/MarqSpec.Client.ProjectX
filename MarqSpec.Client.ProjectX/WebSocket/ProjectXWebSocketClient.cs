@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using MarqSpec.Client.ProjectX.Api.Models;
 using MarqSpec.Client.ProjectX.Authentication;
 using MarqSpec.Client.ProjectX.Configuration;
@@ -17,10 +18,27 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
     private readonly ILoggerFactory _loggerFactory;
     private readonly WebSocketOptions _options;
 
-    private HubConnection? _marketHub;
-    private HubConnection? _userHub;
+    private const string SubscribeContractQuotes = "SubscribeContractQuotes";
+    private const string SubscribeContractMarketDepth = "SubscribeContractMarketDepth";
+    private const string SubscribeContractTrades = "SubscribeContractTrades";
+    private const string SubscribeAccounts = "SubscribeAccounts";
+    private const string SubscribeOrders = "SubscribeOrders";
+    private const string SubscribePositions = "SubscribePositions";
+    private const string SubscribeTrades = "SubscribeTrades";
+
+    private IHubConnectionAdapter? _marketHub;
+    private IHubConnectionAdapter? _userHub;
     private ConnectionState _marketHubState = ConnectionState.Disconnected;
     private ConnectionState _userHubState = ConnectionState.Disconnected;
+
+    private readonly ConcurrentDictionary<HubSubscription, byte> _marketSubscriptions = new();
+    private readonly ConcurrentDictionary<HubSubscription, byte> _userSubscriptions = new();
+
+    /// <summary>
+    /// Test seam: when set, connect uses this instead of building a real
+    /// <see cref="HubConnection"/>. Unit tests must not open a socket (gh#87).
+    /// </summary>
+    internal Func<string, IHubConnectionAdapter>? HubConnectionFactory { get; set; }
 
     private readonly SemaphoreSlim _marketHubLock = new(1, 1);
     private readonly SemaphoreSlim _userHubLock = new(1, 1);
@@ -53,6 +71,23 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
     public ConnectionState UserHubState => _userHubState;
 
     /// <inheritdoc/>
+    public MarketHubSubscriptions MarketSubscriptions => new()
+    {
+        PriceContractIds = SnapshotContracts(SubscribeContractQuotes),
+        OrderBookContractIds = SnapshotContracts(SubscribeContractMarketDepth),
+        TradeContractIds = SnapshotContracts(SubscribeContractTrades)
+    };
+
+    /// <inheritdoc/>
+    public UserHubSubscriptions UserSubscriptions => new()
+    {
+        Accounts = _userSubscriptions.ContainsKey(new HubSubscription(SubscribeAccounts, null)),
+        OrderAccountIds = SnapshotAccounts(SubscribeOrders),
+        PositionAccountIds = SnapshotAccounts(SubscribePositions),
+        TradeAccountIds = SnapshotAccounts(SubscribeTrades)
+    };
+
+    /// <inheritdoc/>
     public event EventHandler<ConnectionStatusChange>? ConnectionStatusChanged;
 
     /// <inheritdoc/>
@@ -73,10 +108,17 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
             // Proves credentials resolve before a connection is attempted; the connection itself gets its
             // token from AccessTokenProvider, which is re-invoked on every reconnect.
             await _authService.GetAccessTokenAsync(cancellationToken);
-            _marketHub = BuildHubConnection(_options.MarketHubUrl);
+            if (_marketHub != null)
+            {
+                await _marketHub.DisposeAsync();
+                _marketHub = null;
+            }
+
+            _marketHub = CreateHubConnection(_options.MarketHubUrl);
             ConfigureMarketHubHandlers(_marketHub);
 
             await _marketHub.StartAsync(cancellationToken);
+            await RestoreSubscriptionsAsync(_marketHub, _marketSubscriptions, "Market", cancellationToken);
             UpdateMarketHubState(ConnectionState.Connected);
 
             _logger.LogInformation("Successfully connected to market hub");
@@ -111,10 +153,17 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
             // Proves credentials resolve before a connection is attempted; the connection itself gets its
             // token from AccessTokenProvider, which is re-invoked on every reconnect.
             await _authService.GetAccessTokenAsync(cancellationToken);
-            _userHub = BuildHubConnection(_options.UserHubUrl);
+            if (_userHub != null)
+            {
+                await _userHub.DisposeAsync();
+                _userHub = null;
+            }
+
+            _userHub = CreateHubConnection(_options.UserHubUrl);
             ConfigureUserHubHandlers(_userHub);
 
             await _userHub.StartAsync(cancellationToken);
+            await RestoreSubscriptionsAsync(_userHub, _userSubscriptions, "User", cancellationToken);
             UpdateUserHubState(ConnectionState.Connected);
 
             _logger.LogInformation("Successfully connected to user hub");
@@ -204,7 +253,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Subscribing to price updates for contract: {ContractId}", contractId);
-            await _marketHub!.InvokeAsync("SubscribeContractQuotes", contractId, cancellationToken);
+            await _marketHub!.InvokeAsync(SubscribeContractQuotes, [contractId], cancellationToken);
+            Record(_marketSubscriptions, SubscribeContractQuotes, contractId);
             _logger.LogInformation("Successfully subscribed to price updates for contract: {ContractId}", contractId);
         }
         catch (Exception ex)
@@ -228,7 +278,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Unsubscribing from price updates for contract: {ContractId}", contractId);
-            await _marketHub!.InvokeAsync("UnsubscribeContractQuotes", contractId, cancellationToken);
+            await _marketHub!.InvokeAsync("UnsubscribeContractQuotes", [contractId], cancellationToken);
+            Forget(_marketSubscriptions, SubscribeContractQuotes, contractId);
             _logger.LogInformation("Successfully unsubscribed from price updates for contract: {ContractId}", contractId);
         }
         catch (Exception ex)
@@ -252,7 +303,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Subscribing to order book updates for contract: {ContractId}", contractId);
-            await _marketHub!.InvokeAsync("SubscribeContractMarketDepth", contractId, cancellationToken);
+            await _marketHub!.InvokeAsync(SubscribeContractMarketDepth, [contractId], cancellationToken);
+            Record(_marketSubscriptions, SubscribeContractMarketDepth, contractId);
             _logger.LogInformation("Successfully subscribed to order book updates for contract: {ContractId}", contractId);
         }
         catch (Exception ex)
@@ -276,7 +328,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Unsubscribing from order book updates for contract: {ContractId}", contractId);
-            await _marketHub!.InvokeAsync("UnsubscribeContractMarketDepth", contractId, cancellationToken);
+            await _marketHub!.InvokeAsync("UnsubscribeContractMarketDepth", [contractId], cancellationToken);
+            Forget(_marketSubscriptions, SubscribeContractMarketDepth, contractId);
             _logger.LogInformation("Successfully unsubscribed from order book updates for contract: {ContractId}", contractId);
         }
         catch (Exception ex)
@@ -300,7 +353,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Subscribing to trade updates for contract: {ContractId}", contractId);
-            await _marketHub!.InvokeAsync("SubscribeContractTrades", contractId, cancellationToken);
+            await _marketHub!.InvokeAsync(SubscribeContractTrades, [contractId], cancellationToken);
+            Record(_marketSubscriptions, SubscribeContractTrades, contractId);
             _logger.LogInformation("Successfully subscribed to trade updates for contract: {ContractId}", contractId);
         }
         catch (Exception ex)
@@ -324,7 +378,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Unsubscribing from trade updates for contract: {ContractId}", contractId);
-            await _marketHub!.InvokeAsync("UnsubscribeContractTrades", contractId, cancellationToken);
+            await _marketHub!.InvokeAsync("UnsubscribeContractTrades", [contractId], cancellationToken);
+            Forget(_marketSubscriptions, SubscribeContractTrades, contractId);
             _logger.LogInformation("Successfully unsubscribed from trade updates for contract: {ContractId}", contractId);
         }
         catch (Exception ex)
@@ -365,7 +420,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Subscribing to order updates for account: {AccountId}", accountId);
-            await _userHub!.InvokeAsync("SubscribeOrders", accountId, cancellationToken);
+            await _userHub!.InvokeAsync(SubscribeOrders, [accountId], cancellationToken);
+            Record(_userSubscriptions, SubscribeOrders, accountId);
             _logger.LogInformation("Successfully subscribed to order updates for account: {AccountId}", accountId);
         }
         catch (Exception ex)
@@ -389,7 +445,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Unsubscribing from order updates for account: {AccountId}", accountId);
-            await _userHub!.InvokeAsync("UnsubscribeOrders", accountId, cancellationToken);
+            await _userHub!.InvokeAsync("UnsubscribeOrders", [accountId], cancellationToken);
+            Forget(_userSubscriptions, SubscribeOrders, accountId);
             _logger.LogInformation("Successfully unsubscribed from order updates for account: {AccountId}", accountId);
         }
         catch (Exception ex)
@@ -408,7 +465,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Subscribing to account updates");
-            await _userHub!.InvokeAsync("SubscribeAccounts", cancellationToken);
+            await _userHub!.InvokeAsync(SubscribeAccounts, [], cancellationToken);
+            Record(_userSubscriptions, SubscribeAccounts, null);
             _logger.LogInformation("Successfully subscribed to account updates");
         }
         catch (Exception ex)
@@ -427,7 +485,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Unsubscribing from account updates");
-            await _userHub!.InvokeAsync("UnsubscribeAccounts", cancellationToken);
+            await _userHub!.InvokeAsync("UnsubscribeAccounts", [], cancellationToken);
+            Forget(_userSubscriptions, SubscribeAccounts, null);
             _logger.LogInformation("Successfully unsubscribed from account updates");
         }
         catch (Exception ex)
@@ -451,7 +510,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Subscribing to position updates for account: {AccountId}", accountId);
-            await _userHub!.InvokeAsync("SubscribePositions", accountId, cancellationToken);
+            await _userHub!.InvokeAsync(SubscribePositions, [accountId], cancellationToken);
+            Record(_userSubscriptions, SubscribePositions, accountId);
             _logger.LogInformation("Successfully subscribed to position updates for account: {AccountId}", accountId);
         }
         catch (Exception ex)
@@ -475,7 +535,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Unsubscribing from position updates for account: {AccountId}", accountId);
-            await _userHub!.InvokeAsync("UnsubscribePositions", accountId, cancellationToken);
+            await _userHub!.InvokeAsync("UnsubscribePositions", [accountId], cancellationToken);
+            Forget(_userSubscriptions, SubscribePositions, accountId);
             _logger.LogInformation("Successfully unsubscribed from position updates for account: {AccountId}", accountId);
         }
         catch (Exception ex)
@@ -499,7 +560,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Subscribing to trade notifications for account: {AccountId}", accountId);
-            await _userHub!.InvokeAsync("SubscribeTrades", accountId, cancellationToken);
+            await _userHub!.InvokeAsync(SubscribeTrades, [accountId], cancellationToken);
+            Record(_userSubscriptions, SubscribeTrades, accountId);
             _logger.LogInformation("Successfully subscribed to trade notifications for account: {AccountId}", accountId);
         }
         catch (Exception ex)
@@ -523,7 +585,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         try
         {
             _logger.LogDebug("Unsubscribing from trade notifications for account: {AccountId}", accountId);
-            await _userHub!.InvokeAsync("UnsubscribeTrades", accountId, cancellationToken);
+            await _userHub!.InvokeAsync("UnsubscribeTrades", [accountId], cancellationToken);
+            Forget(_userSubscriptions, SubscribeTrades, accountId);
             _logger.LogInformation("Successfully unsubscribed from trade notifications for account: {AccountId}", accountId);
         }
         catch (Exception ex)
@@ -600,45 +663,144 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         return connection;
     }
 
-    private void ConfigureMarketHubHandlers(HubConnection connection)
+    /// <summary>
+    /// Builds the hub adapter, or the test fake when <see cref="HubConnectionFactory"/> is set.
+    /// </summary>
+    internal IHubConnectionAdapter CreateHubConnection(string hubUrl)
+    {
+        if (HubConnectionFactory is not null)
+        {
+            return HubConnectionFactory(hubUrl);
+        }
+
+        return new SignalRHubConnectionAdapter(BuildHubConnection(hubUrl));
+    }
+
+    /// <summary>
+    /// Restores market-hub subscriptions after SignalR automatic reconnect (gh#87).
+    /// </summary>
+    internal async Task HandleMarketHubReconnectedAsync(string? connectionId)
+    {
+        await _marketHubLock.WaitAsync();
+        try
+        {
+            _logger.LogInformation("Market hub reconnected with connection ID: {ConnectionId}", connectionId);
+
+            try
+            {
+                await RestoreSubscriptionsAsync(_marketHub, _marketSubscriptions, "Market", CancellationToken.None);
+                UpdateMarketHubState(ConnectionState.Connected);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to restore market hub subscriptions after reconnect");
+                UpdateMarketHubState(ConnectionState.Failed, ex);
+            }
+        }
+        finally
+        {
+            _marketHubLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Restores user-hub subscriptions after SignalR automatic reconnect (gh#87).
+    /// </summary>
+    internal async Task HandleUserHubReconnectedAsync(string? connectionId)
+    {
+        await _userHubLock.WaitAsync();
+        try
+        {
+            _logger.LogInformation("User hub reconnected with connection ID: {ConnectionId}", connectionId);
+
+            try
+            {
+                await RestoreSubscriptionsAsync(_userHub, _userSubscriptions, "User", CancellationToken.None);
+                UpdateUserHubState(ConnectionState.Connected);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to restore user hub subscriptions after reconnect");
+                UpdateUserHubState(ConnectionState.Failed, ex);
+            }
+        }
+        finally
+        {
+            _userHubLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Applies the hub <paramref name="contractId"/> to a quote and raises
+    /// <see cref="PriceUpdateReceived"/>. Visible to unit tests (gh#86).
+    /// </summary>
+    internal void HandleGatewayQuote(string contractId, PriceUpdate? update)
+    {
+        if (update is null)
+        {
+            return;
+        }
+
+        update.ContractId = contractId;
+        _logger.LogTrace("Received price update for contract {ContractId} symbol {Symbol}", contractId, update.Symbol);
+        PriceUpdateReceived?.Invoke(this, update);
+    }
+
+    /// <summary>
+    /// Applies the hub <paramref name="contractId"/> to each depth row and raises
+    /// <see cref="OrderBookUpdateReceived"/>. Visible to unit tests (gh#86).
+    /// </summary>
+    internal void HandleGatewayDepth(string contractId, OrderBookUpdate[]? updates)
+    {
+        foreach (var update in updates ?? [])
+        {
+            if (update is null)
+            {
+                continue;
+            }
+
+            update.ContractId = contractId;
+            _logger.LogTrace(
+                "Received DOM update for contract {ContractId} type {Type} at price {Price}",
+                contractId,
+                update.Type,
+                update.Price);
+            OrderBookUpdateReceived?.Invoke(this, update);
+        }
+    }
+
+    /// <summary>
+    /// Applies the hub <paramref name="contractId"/> to each trade and raises
+    /// <see cref="TradeUpdateReceived"/>. Visible to unit tests (gh#86).
+    /// </summary>
+    internal void HandleGatewayTrade(string contractId, TradeUpdate[]? updates)
+    {
+        foreach (var update in updates ?? [])
+        {
+            if (update is null)
+            {
+                continue;
+            }
+
+            update.ContractId = contractId;
+            _logger.LogTrace(
+                "Received trade update for contract {ContractId} symbol {SymbolId}",
+                contractId,
+                update.SymbolId);
+            TradeUpdateReceived?.Invoke(this, update);
+        }
+    }
+
+    private void ConfigureMarketHubHandlers(IHubConnectionAdapter connection)
     {
         // Price/Quote updates - server sends (contractId, data)
-        connection.On<string, PriceUpdate>("GatewayQuote", (contractId, update) =>
-        {
-            if (update == null)
-            {
-                return;
-            }
-
-            _logger.LogTrace("Received price update for symbol: {Symbol}", update.Symbol);
-            PriceUpdateReceived?.Invoke(this, update);
-        });
+        connection.On<string, PriceUpdate>("GatewayQuote", HandleGatewayQuote);
 
         // Order book/Depth updates - server sends (contractId, data[])
-        connection.On<string, OrderBookUpdate[]>("GatewayDepth", (contractId, updates) =>
-        {
-            foreach (var update in updates ?? [])
-            {
-                if (update != null)
-                {
-                    _logger.LogTrace("Received DOM update type: {Type} at price: {Price}", update.Type, update.Price);
-                    OrderBookUpdateReceived?.Invoke(this, update);
-                }
-            }
-        });
+        connection.On<string, OrderBookUpdate[]>("GatewayDepth", HandleGatewayDepth);
 
         // Trade updates - server sends (contractId, data[])
-        connection.On<string, TradeUpdate[]>("GatewayTrade", (contractId, updates) =>
-        {
-            foreach (var update in updates ?? [])
-            {
-                if (update != null)
-                {
-                    _logger.LogTrace("Received trade update for symbol: {SymbolId}", update.SymbolId);
-                    TradeUpdateReceived?.Invoke(this, update);
-                }
-            }
-        });
+        connection.On<string, TradeUpdate[]>("GatewayTrade", HandleGatewayTrade);
 
         // Connection lifecycle
         connection.Closed += async (error) =>
@@ -659,15 +821,10 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
             return Task.CompletedTask;
         };
 
-        connection.Reconnected += (connectionId) =>
-        {
-            _logger.LogInformation("Market hub reconnected with connection ID: {ConnectionId}", connectionId);
-            UpdateMarketHubState(ConnectionState.Connected);
-            return Task.CompletedTask;
-        };
+        connection.Reconnected += HandleMarketHubReconnectedAsync;
     }
 
-    private void ConfigureUserHubHandlers(HubConnection connection)
+    private void ConfigureUserHubHandlers(IHubConnectionAdapter connection)
     {
         // Account updates
         connection.On<AccountUpdate>("GatewayUserAccount", update =>
@@ -719,12 +876,7 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
             return Task.CompletedTask;
         };
 
-        connection.Reconnected += (connectionId) =>
-        {
-            _logger.LogInformation("User hub reconnected with connection ID: {ConnectionId}", connectionId);
-            UpdateUserHubState(ConnectionState.Connected);
-            return Task.CompletedTask;
-        };
+        connection.Reconnected += HandleUserHubReconnectedAsync;
     }
 
     private void UpdateMarketHubState(ConnectionState newState, Exception? exception = null)
@@ -790,6 +942,75 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
         });
     }
 
+    private async Task RestoreSubscriptionsAsync(
+        IHubConnectionAdapter? hub,
+        ConcurrentDictionary<HubSubscription, byte> subscriptions,
+        string hubName,
+        CancellationToken cancellationToken)
+    {
+        if (hub is null)
+        {
+            return;
+        }
+
+        Exception? firstFailure = null;
+        foreach (var subscription in subscriptions.Keys)
+        {
+            var args = Args(subscription.Argument);
+            try
+            {
+                await hub.InvokeAsync(subscription.MethodName, args, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to restore {Hub} subscription {Method} after reconnect",
+                    hubName,
+                    subscription.MethodName);
+                RaiseMessageSendFailed(hubName, ToReportedMethodName(subscription.MethodName), args, ex);
+                firstFailure ??= ex;
+            }
+        }
+
+        if (firstFailure is not null)
+        {
+            throw firstFailure;
+        }
+    }
+
+    private IReadOnlySet<string> SnapshotContracts(string methodName) =>
+        _marketSubscriptions.Keys
+            .Where(subscription => subscription.MethodName == methodName)
+            .Select(subscription => (string)subscription.Argument!)
+            .ToHashSet();
+
+    private IReadOnlySet<int> SnapshotAccounts(string methodName) =>
+        _userSubscriptions.Keys
+            .Where(subscription => subscription.MethodName == methodName)
+            .Select(subscription => (int)subscription.Argument!)
+            .ToHashSet();
+
+    private static void Record(ConcurrentDictionary<HubSubscription, byte> set, string methodName, object? argument) =>
+        set[new HubSubscription(methodName, argument)] = 0;
+
+    private static void Forget(ConcurrentDictionary<HubSubscription, byte> set, string methodName, object? argument) =>
+        set.TryRemove(new HubSubscription(methodName, argument), out _);
+
+    private static object?[] Args(object? argument) => argument is null ? [] : [argument];
+
+    private static string ToReportedMethodName(string hubMethod) => hubMethod switch
+    {
+        SubscribeContractQuotes => "SubscribeToPrices",
+        SubscribeContractMarketDepth => "SubscribeToDepth",
+        SubscribeContractTrades => "SubscribeToTrades",
+        SubscribeAccounts => "SubscribeAccounts",
+        SubscribeOrders => "SubscribeOrders",
+        SubscribePositions => "SubscribePositions",
+        SubscribeTrades => "SubscribeTrades",
+        _ => hubMethod
+    };
+
     #endregion
 
     #region IAsyncDisposable
@@ -830,6 +1051,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
     /// <c>WithAutomaticReconnect</c> was applied unconditionally and the flag only decided whether a log line
     /// was written, so setting it <see langword="false"/> reconnected anyway (gh#69).
     /// </remarks>
+    private readonly record struct HubSubscription(string MethodName, object? Argument);
+
     internal sealed class ReconnectPolicy : IRetryPolicy
     {
         private readonly WebSocketOptions _options;

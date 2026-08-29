@@ -60,12 +60,21 @@ Credentials are supplied by configuration, never compiled in.
 - **R-5.2** Surface account, order, position, trade, price, order-book and trade-notification updates as .NET
   events (observer pattern), deserialized into typed models.
 - **R-5.3** **Reconnect automatically within 5 seconds** of a disconnection, re-acquiring a fresh token on each
-  attempt rather than replaying an expired one.
+  attempt rather than replaying an expired one. After the new connection id is established, restore every
+  recorded hub subscription **before** reporting `Connected`. A restore failure is raised on
+  `MessageSendFailed` (R-5.5) and the hub is reported `Failed`, not `Connected`. A later `Connect*` after
+  `Failed` disposes the previous hub and must restore before `Connected` as well — otherwise the recovery
+  path republishes the same silent-empty-stream lie (gh#87).
 - **R-5.4** Sustain **1000 events/second per stream** without message loss or degradation.
 - **R-5.5** A message that fails to send is reported to observers rather than swallowed
   (`MessageSendFailed`).
 - **R-5.6** Report connection-state transitions so a consumer can distinguish connected, reconnecting and
   faulted.
+- **R-5.7** Market-hub events (`GatewayQuote`, `GatewayDepth`, `GatewayTrade`) surface the hub
+  `contractId` on the raised update. The payload symbol is a product root; two expiries of one root
+  must remain distinguishable (gh#86).
+- **R-5.8** An absent or unrecognised `TradeLogType` is representable (`null`) and is never coerced to
+  `Buy`. The live wire keeps `0 = Buy`, `1 = Sell` (gh#86).
 
 ## R-6 — Resilience
 
@@ -173,4 +182,5 @@ strategies · multi-account orchestration · **any risk, sizing or policy decisi
 
 | Date | Change |
 |---|---|
+| 2026-08-28 | Added R-5.7 (hub `contractId` on market events) and R-5.8 (trade direction is nullable; wire `0` stays Buy). |
 | 2026-08-05 | Restructured from the root `PRD.md` into stable `R-#` ids. Added R-8 (the client decides nothing) and R-3.3/R-3.4 (idempotency and unknown outcomes), which were established practice and merged fixes but had never been written as requirements. Moved dependency versions out to `Directory.Packages.props`. |

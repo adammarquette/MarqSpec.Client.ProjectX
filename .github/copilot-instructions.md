@@ -27,9 +27,11 @@ The recurring defect shape is a permissive default.
 
 - Prefer a **whitelist** to a blacklist. "Retry unless X" grows silently as endpoints are added; "retry only
   these" does not.
-- **Zero-valued enums are permissive by accident.** An unset `OrderSide` or `OrderType` deserializes to
-  whatever `0` means. Wire enums arriving from the gateway need exhaustive handling, and an unrecognized value
-  is an error, not a default.
+- **Zero-valued enums are permissive by accident.** An unset `OrderType` deserializes to
+  whatever `0` means. `OrderSide` is the exception that proved the rule: `Bid = 0` is a real buy, so
+  response `Side` is `OrderSide?` and an omitted field is `null` (gh#83, ADR-0012). Wire enums
+  arriving from the gateway need exhaustive handling, and an unrecognized value is an error, not a
+  default.
 - A `catch` that swallows and returns a default is a fail-open. Say what happened, or let it propagate.
 
 ## The library decides nothing

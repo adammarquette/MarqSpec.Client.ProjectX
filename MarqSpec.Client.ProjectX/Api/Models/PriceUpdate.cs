@@ -8,6 +8,18 @@ namespace MarqSpec.Client.ProjectX.Api.Models;
 public class PriceUpdate
 {
     /// <summary>
+    /// Gets or sets the contract identifier the market hub bound this event to
+    /// (for example <c>CON.F.US.EP.Z26</c>).
+    /// </summary>
+    /// <remarks>
+    /// The hub delivers <c>(contractId, payload)</c>. <see cref="Symbol"/> is
+    /// the product root; this property is stamped from the hub argument at bind
+    /// time and is not a field on the JSON payload (R-5.7, gh#86).
+    /// </remarks>
+    [JsonIgnore]
+    public string ContractId { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the symbol ID (e.g. "F.US.EP").
     /// </summary>
     [JsonPropertyName("symbol")]
