@@ -108,10 +108,17 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
             // Proves credentials resolve before a connection is attempted; the connection itself gets its
             // token from AccessTokenProvider, which is re-invoked on every reconnect.
             await _authService.GetAccessTokenAsync(cancellationToken);
+            if (_marketHub != null)
+            {
+                await _marketHub.DisposeAsync();
+                _marketHub = null;
+            }
+
             _marketHub = CreateHubConnection(_options.MarketHubUrl);
             ConfigureMarketHubHandlers(_marketHub);
 
             await _marketHub.StartAsync(cancellationToken);
+            await RestoreSubscriptionsAsync(_marketHub, _marketSubscriptions, "Market", cancellationToken);
             UpdateMarketHubState(ConnectionState.Connected);
 
             _logger.LogInformation("Successfully connected to market hub");
@@ -146,10 +153,17 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
             // Proves credentials resolve before a connection is attempted; the connection itself gets its
             // token from AccessTokenProvider, which is re-invoked on every reconnect.
             await _authService.GetAccessTokenAsync(cancellationToken);
+            if (_userHub != null)
+            {
+                await _userHub.DisposeAsync();
+                _userHub = null;
+            }
+
             _userHub = CreateHubConnection(_options.UserHubUrl);
             ConfigureUserHubHandlers(_userHub);
 
             await _userHub.StartAsync(cancellationToken);
+            await RestoreSubscriptionsAsync(_userHub, _userSubscriptions, "User", cancellationToken);
             UpdateUserHubState(ConnectionState.Connected);
 
             _logger.LogInformation("Successfully connected to user hub");
@@ -667,17 +681,25 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
     /// </summary>
     internal async Task HandleMarketHubReconnectedAsync(string? connectionId)
     {
-        _logger.LogInformation("Market hub reconnected with connection ID: {ConnectionId}", connectionId);
-
+        await _marketHubLock.WaitAsync();
         try
         {
-            await RestoreSubscriptionsAsync(_marketHub, _marketSubscriptions, "Market", CancellationToken.None);
-            UpdateMarketHubState(ConnectionState.Connected);
+            _logger.LogInformation("Market hub reconnected with connection ID: {ConnectionId}", connectionId);
+
+            try
+            {
+                await RestoreSubscriptionsAsync(_marketHub, _marketSubscriptions, "Market", CancellationToken.None);
+                UpdateMarketHubState(ConnectionState.Connected);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to restore market hub subscriptions after reconnect");
+                UpdateMarketHubState(ConnectionState.Failed, ex);
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            _logger.LogError(ex, "Failed to restore market hub subscriptions after reconnect");
-            UpdateMarketHubState(ConnectionState.Failed, ex);
+            _marketHubLock.Release();
         }
     }
 
@@ -686,17 +708,25 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
     /// </summary>
     internal async Task HandleUserHubReconnectedAsync(string? connectionId)
     {
-        _logger.LogInformation("User hub reconnected with connection ID: {ConnectionId}", connectionId);
-
+        await _userHubLock.WaitAsync();
         try
         {
-            await RestoreSubscriptionsAsync(_userHub, _userSubscriptions, "User", CancellationToken.None);
-            UpdateUserHubState(ConnectionState.Connected);
+            _logger.LogInformation("User hub reconnected with connection ID: {ConnectionId}", connectionId);
+
+            try
+            {
+                await RestoreSubscriptionsAsync(_userHub, _userSubscriptions, "User", CancellationToken.None);
+                UpdateUserHubState(ConnectionState.Connected);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to restore user hub subscriptions after reconnect");
+                UpdateUserHubState(ConnectionState.Failed, ex);
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            _logger.LogError(ex, "Failed to restore user hub subscriptions after reconnect");
-            UpdateUserHubState(ConnectionState.Failed, ex);
+            _userHubLock.Release();
         }
     }
 

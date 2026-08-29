@@ -128,8 +128,10 @@ at construction; replaying an expired token is how a reconnect loop turns into a
 Auto-reconnect backs off 1 s → 5 s, satisfying R-5.3. SignalR automatic reconnect is a **new connection
 id**, so server-side hub subscriptions do not survive it: every successful `SubscribeTo*` is recorded per
 hub and re-invoked on `Reconnected` **before** `Connected` is published. A failed restore raises
-`MessageSendFailed` and reports `Failed` (gh#87). The current sets are readable as
-`MarketSubscriptions` and `UserSubscriptions`.
+`MessageSendFailed` and reports `Failed`. `Connect*` after `Failed` disposes the previous hub, restores
+the recorded set, and only then publishes `Connected`; restore runs under the same hub lock so a
+`Connect*` cannot publish `Connected` on an empty replacement while restore is still in flight (gh#87).
+`MarketSubscriptions` and `UserSubscriptions` are recorded intent, not live server state.
 
 The type is `IAsyncDisposable`. A consumer that abandons it without disposing leaks both connections.
 

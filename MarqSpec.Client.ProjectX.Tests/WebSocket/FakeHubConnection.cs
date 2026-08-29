@@ -22,6 +22,10 @@ internal sealed class FakeHubConnection : IHubConnectionAdapter
 
     public IReadOnlyList<(string Method, object?[] Args)> Invocations => _invocations;
 
+    public int StartCount { get; private set; }
+
+    public bool Disposed { get; private set; }
+
     public Action<int>? ConnectedDuringInvoke { get; set; }
 
     public void QueueInvokeResult(Task result) => _invokeResults.Add(result);
@@ -35,11 +39,19 @@ internal sealed class FakeHubConnection : IHubConnectionAdapter
     public Task RaiseReconnectedAsync(string? connectionId) =>
         Reconnected?.Invoke(connectionId) ?? Task.CompletedTask;
 
-    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        StartCount++;
+        return Task.CompletedTask;
+    }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    public ValueTask DisposeAsync()
+    {
+        Disposed = true;
+        return ValueTask.CompletedTask;
+    }
 
     public async Task InvokeAsync(string methodName, object?[] args, CancellationToken cancellationToken)
     {
