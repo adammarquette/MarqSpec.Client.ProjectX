@@ -10,6 +10,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > that can go stale. Its entry moves in the **promotion PR**, not after the release — the 1.0.3–1.0.5 gap below
 > was backfilled precisely because "write it up afterwards" does not survive contact with a merge.
 
+## [Unreleased]
+
+## [3.0.0] - 2026-08-28
+
+### Breaking changes
+
+**Response `Side` is now `OrderSide?`** ([ADR-0012](documentation/adr/0012-order-side-is-nullable.md),
+gh#83). An omitted `side` deserialised as `Bid`, indistinguishable from an explicit buy. `Order.Side`,
+`HalfTrade.Side`, `OrderUpdate.Side` and `TradeNotification.Side` are nullable so absence is `null`.
+`OrderSide.Bid` / `Ask` keep their wire values (`0` / `1`). `PlaceOrderRequest.Side` stays required.
+
+**`TradeUpdate.Type` is now `TradeLogType?`** ([ADR-0011](documentation/adr/0011-trade-direction-is-nullable.md),
+gh#86). An omitted, null, or unparseable `type` deserialised as `Buy`, so every unstated print became
+buying pressure. `TradeLogType.Buy` / `Sell` keep their documented wire values (`0` / `1`). Market-hub
+events (`TradeUpdate`, `PriceUpdate`, `OrderBookUpdate`) now carry `ContractId`, stamped at bind time.
+
+The next published tag that includes these changes is a **major**. No file declares a version
+([ADR-0006](documentation/adr/0006-tag-driven-versioning.md)).
+
+### Changed
+- Refit / Refit.HttpClientFactory **15.0.0 → 15.2.0** (PR #85). `RequestCompression` stays default
+  `None`; `POST /api/Order/place` is still excluded from retry
+
+### Fixed
+- An omitted `side` on order and trade responses no longer binds to `Bid` (gh#83)
+- An omitted `type` on a market-hub trade print no longer binds to `Buy` (gh#86)
+- **Hub reconnect restores recorded subscriptions before publishing `Connected`.** SignalR automatic
+  reconnect is a new connection id, so server-side subscriptions are gone; the old handlers only
+  logged and marked the hub connected, which left both hubs silently delivering nothing. A failed
+  restore surfaces on `MessageSendFailed` as `Failed` (gh#87)
+- Delivery after a real connection-id change is proven against FakeGateway
+  (`POST /_control/abort/{hub}`, gh#92)
+- `.worktrees/` is ignored, so a routine `git add -A` cannot stage a nested worktree as a gitlink
+  (gh#81)
+- **CodeQL no longer re-fires `cs/cleartext-storage-of-sensitive-information` on `accountId` logs.**
+  Dismissals did not survive a line shift; that one rule is excluded via query-filters so a PR that
+  only moves those lines stays green, while every other query still runs (gh#59)
+
 ## [2.1.0] - 2026-08-22
 
 ### Changed

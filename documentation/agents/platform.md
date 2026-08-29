@@ -5,7 +5,7 @@ Governs the pipeline, the local test environment, and the path a package takes t
 
 | Artifact | Where |
 | --- | --- |
-| CI, branch-policy, CodeQL, release workflows | [`.github/workflows/`](../../.github/workflows/) |
+| CI, branch-policy, CodeQL, release workflows | [`.github/workflows/`](../../.github/workflows/), CodeQL config at [`.github/codeql/`](../../.github/codeql/) |
 | The fake gateway image | `MarqSpec.Client.ProjectX.FakeGateway/Dockerfile`, build context = repo root |
 | Local stack | [`docker-compose.yml`](../../docker-compose.yml), [`docker-compose.dev.yml`](../../docker-compose.dev.yml) |
 | Build and packaging properties | `Directory.Build.props`, `Directory.Packages.props`, `global.json` |
@@ -46,7 +46,8 @@ The root contract's five apply here unchanged. Four land specifically on the pip
   instead of the tagged version — and it does so *silently*, producing a package rather than an error. Any job
   that packs needs `fetch-depth: 0` (ADR-0006).
 - **Both target frameworks, everywhere.** `net8.0` and `net10.0` are both first-class (ADR-0005); a job that
-  installs only one SDK is a job that stops catching one of them. CodeQL currently does exactly this.
+  installs only one SDK is a job that stops catching one of them. CodeQL historically installed only the 10.0
+  SDK; it now matches `ci.yml` (`8.0.x` and `10.0.x`).
 - **A script authored on Windows commits as `100644`.** CI invoking `./scripts/foo.sh` then dies with exit 126
   while a local `bash scripts/foo.sh` passes. Fix it in the same commit with
   `git update-index --chmod=+x <path>`.

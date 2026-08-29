@@ -28,7 +28,7 @@ A .NET client library for the ProjectX REST API, providing easy access to market
 - WebSocket streaming via two SignalR hubs (Market Hub + User Hub)
 - Subscribe to real-time price updates, order book depth, and trade executions
 - Subscribe to real-time order status updates per account
-- Automatic reconnection with exponential backoff (1s initial, 5s max)
+- Automatic reconnection with exponential backoff (1s initial, 5s max), restoring subscriptions before reporting Connected
 - Connection status monitoring via events
 - Thread-safe, high-throughput (1000+ events/second)
 
@@ -203,14 +203,14 @@ public class MarketDataService : IAsyncDisposable
 
         _wsClient.OrderBookUpdateReceived += (sender, update) =>
         {
-            _logger.LogInformation("{Contract} Book: {Bids} bids, {Asks} asks (seq {Seq})",
-                update.ContractId, update.Bids.Count, update.Asks.Count, update.SequenceNumber);
+            _logger.LogInformation("{Contract} Depth: {Type} {Price} x {Volume}",
+                update.ContractId, update.Type, update.Price, update.Volume);
         };
 
         _wsClient.TradeUpdateReceived += (sender, update) =>
         {
-            _logger.LogInformation("{Contract} Trade: {Price} x {Qty} ({Side})",
-                update.ContractId, update.Price, update.Quantity, update.Side);
+            _logger.LogInformation("{Contract} Trade: {Price} x {Volume} ({Type})",
+                update.ContractId, update.Price, update.Volume, update.Type);
         };
 
         // Connect and subscribe
@@ -274,7 +274,7 @@ Monitor state transitions via the `ConnectionStatusChanged` event, which provide
 
 ### Auto-Reconnection
 
-Automatic reconnection is enabled by default. When a connection drops, the client uses exponential backoff starting at 1 second up to a maximum of 5 seconds. During reconnection, the `ConnectionStatusChanged` event fires with `ConnectionState.Reconnecting`. Configure reconnection behavior in `appsettings.json`:
+Automatic reconnection is enabled by default. When a connection drops, the client uses exponential backoff starting at 1 second up to a maximum of 5 seconds. During reconnection, the `ConnectionStatusChanged` event fires with `ConnectionState.Reconnecting`. SignalR automatic reconnect is a new connection id, so server-side subscriptions are gone: the client re-invokes every recorded `SubscribeTo*` against the new connection **before** reporting `Connected`. A failed restore raises `MessageSendFailed` and reports `Failed`, not `Connected`. `Connect*HubAsync` after `Failed` disposes the previous hub and does the same restore-before-`Connected` step; a restore failure there is thrown to the caller. `MarketSubscriptions` and `UserSubscriptions` are recorded subscribe *intent* — what the next connect or reconnect will try to restore — not proof the server is currently delivering. Trust `ConnectionState.Connected` after a successful restore, not the snapshot alone. Configure reconnection behavior in `appsettings.json`:
 
 ```json
 {
@@ -379,6 +379,8 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 |----------|------|-------------|
 | `MarketHubState` | `ConnectionState` | Current connection state of the market hub |
 | `UserHubState` | `ConnectionState` | Current connection state of the user hub |
+| `MarketSubscriptions` | `MarketHubSubscriptions` | Recorded market-hub subscribe intent the client will try to restore; not a liveness guarantee |
+| `UserSubscriptions` | `UserHubSubscriptions` | Recorded user-hub subscribe intent the client will try to restore; not a liveness guarantee |
 
 #### Market Data Subscriptions
 
@@ -412,7 +414,8 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `Symbol` | `string` | Symbol ID (e.g. `"F.US.EP"`) |
+| `ContractId` | `string` | Contract the market hub bound this event to (e.g. `"CON.F.US.EP.Z26"`). Stamped from the hub argument, not the JSON payload |
+| `Symbol` | `string` | Product-root symbol ID (e.g. `"F.US.EP"`) |
 | `SymbolName` | `string?` | Friendly symbol name |
 | `LastPrice` | `decimal` | Last traded price |
 | `BestBid` | `decimal` | Best bid price |
@@ -428,25 +431,27 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 
 #### OrderBookUpdate
 
+A single DOM (depth-of-market) row from `GatewayDepth`, not a full book snapshot.
+
 | Property | Type | Description |
 |----------|------|-------------|
-| `ContractId` | `string` | Contract identifier |
-| `Bids` | `List<OrderBookLevel>` | Bid price levels (price + quantity) |
-| `Asks` | `List<OrderBookLevel>` | Ask price levels (price + quantity) |
+| `ContractId` | `string` | Contract the market hub bound this event to. Stamped from the hub argument; the payload has no symbol |
 | `Timestamp` | `DateTime` | Update timestamp |
-| `SequenceNumber` | `long` | Sequence number for ordering |
+| `Type` | `DomType` | DOM entry type (`Ask`, `Bid`, `BestAsk`, …) |
+| `Price` | `decimal` | Price level |
+| `Volume` | `decimal` | Total volume at this price level |
+| `CurrentVolume` | `int` | Current (delta) volume at this price level |
 
 #### TradeUpdate
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `ContractId` | `string` | Contract identifier |
-| `TradeId` | `long` | Unique trade identifier |
+| `ContractId` | `string` | Contract the market hub bound this event to. Stamped from the hub argument; `SymbolId` is the product root |
+| `SymbolId` | `string` | Product-root symbol ID (e.g. `"F.US.EP"`) |
 | `Price` | `decimal` | Trade price |
-| `Quantity` | `int` | Trade quantity |
-| `Side` | `TradeSide` | `Buy` or `Sell` |
 | `Timestamp` | `DateTime` | Trade timestamp |
-| `IsAggressive` | `bool` | Whether the trade was aggressive (taker) |
+| `Type` | `TradeLogType?` | `Buy` (wire `0`) or `Sell` (wire `1`). `null` when the venue omitted or sent an unrecognised `type` |
+| `Volume` | `decimal` | Trade volume |
 
 #### OrderUpdate
 
@@ -457,7 +462,7 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 | `ContractId` | `string` | Contract identifier |
 | `Status` | `OrderStatus` | Current order status |
 | `Type` | `OrderType` | Order type (Market, Limit, Stop, etc.) |
-| `Side` | `OrderSide` | Order side (Bid/Ask) |
+| `Side` | `OrderSide?` | `Bid` (wire `0`) or `Ask` (wire `1`). `null` when the venue omitted `side` |
 | `Size` | `int` | Total order size |
 | `FilledQuantity` | `int` | Quantity filled so far |
 | `RemainingQuantity` | `int` | Quantity remaining |
@@ -478,14 +483,6 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 | `ErrorMessage` | `string?` | Error description (if error-related) |
 | `Exception` | `Exception?` | Exception that caused the change (if any) |
 
-#### OrderBookLevel
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `Price` | `decimal` | Price level |
-| `Quantity` | `decimal` | Quantity at this price level |
-| `OrderCount` | `int` | Number of orders at this level |
-
 ### Enums
 
 #### ConnectionState
@@ -497,6 +494,10 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 | `Connected` | Active and receiving data |
 | `Reconnecting` | Automatically reconnecting after a disconnection |
 | `Failed` | Connection failed |
+
+#### MarketHubSubscriptions / UserHubSubscriptions
+
+Recorded subscribe intent, not live server state. After `Failed` the sets still list what the next `Connect*` or automatic reconnect will try to restore. `MarketHubSubscriptions` holds the contract-id sets for quotes, depth and trades. `UserHubSubscriptions` holds the account-updates flag and the account-id sets for orders, positions and trade notifications.
 
 #### OrderStatus
 
@@ -529,15 +530,19 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 
 | Value | Description |
 |-------|-------------|
-| `Bid` (0) | Buy order |
+| `Bid` (0) | Buy order. This is the live wire value — do not treat `0` as "unset" |
 | `Ask` (1) | Sell order |
 
-#### TradeSide
+`Order.Side`, `HalfTrade.Side`, `OrderUpdate.Side` and `TradeNotification.Side` are `OrderSide?`. `null` means the venue omitted `side`. `PlaceOrderRequest.Side` stays required.
+
+#### TradeLogType
 
 | Value | Description |
 |-------|-------------|
-| `Buy` | Buy side trade |
-| `Sell` | Sell side trade |
+| `Buy` (0) | Buy-side print. This is the live wire value — do not treat `0` as "unknown" |
+| `Sell` (1) | Sell-side print |
+
+`TradeUpdate.Type` is `TradeLogType?`. `null` means the venue omitted `type` or sent a value that is neither `0` nor `1`.
 
 #### PositionType
 
@@ -596,7 +601,7 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 | `UpdateTimestamp` | `DateTime?` | When the order was last updated |
 | `Status` | `OrderStatus` | Current order status |
 | `Type` | `OrderType` | Order type |
-| `Side` | `OrderSide` | Order side (Bid/Ask) |
+| `Side` | `OrderSide?` | `Bid` (wire `0`) or `Ask` (wire `1`). `null` when the venue omitted `side` |
 | `Size` | `int` | Order quantity |
 | `LimitPrice` | `decimal?` | Limit price (for limit orders) |
 | `StopPrice` | `decimal?` | Stop price (for stop orders) |
@@ -628,7 +633,7 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 | `Price` | `decimal` | Execution price |
 | `ProfitAndLoss` | `decimal?` | Realized P&L for this trade leg |
 | `Fees` | `decimal` | Fees charged |
-| `Side` | `OrderSide` | Trade side (Bid = buy, Ask = sell) |
+| `Side` | `OrderSide?` | `Bid` (buy) or `Ask` (sell). `null` when the venue omitted `side` |
 | `Size` | `int` | Number of contracts traded |
 | `Voided` | `bool` | Whether this trade has been voided |
 | `OrderId` | `long` | ID of the order that generated this trade |

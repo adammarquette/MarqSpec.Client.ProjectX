@@ -50,10 +50,16 @@ public class HalfTrade
     public decimal Fees { get; set; }
 
     /// <summary>
-    /// Gets or sets the trade side (Bid = buy, Ask = sell).
+    /// Gets or sets the trade side (Bid = buy, Ask = sell), or <c>null</c> when the venue omitted <c>side</c>.
     /// </summary>
+    /// <remarks>
+    /// Wire <c>0</c> is Bid and <c>1</c> is Ask. An omitted field is <c>null</c>, not
+    /// <see cref="OrderSide.Bid"/> (gh#83). An explicit JSON <c>null</c> is rejected:
+    /// swagger types <c>side</c> as <c>OrderSide</c>, not nullable-and-present.
+    /// </remarks>
     [JsonPropertyName("side")]
-    public OrderSide Side { get; set; }
+    [JsonConverter(typeof(OrderSideJsonConverter))]
+    public OrderSide? Side { get; set; }
 
     /// <summary>
     /// Gets or sets the number of contracts traded.

@@ -39,6 +39,9 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
+          # Rule-scoped exclusions (not file-scoped, not a scanner disable). See
+          # the comment in that file before adding another query id.
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6

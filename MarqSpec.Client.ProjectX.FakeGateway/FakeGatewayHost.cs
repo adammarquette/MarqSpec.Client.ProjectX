@@ -32,6 +32,7 @@ public static class FakeGatewayHost
         }
 
         builder.Services.AddSingleton<GatewayState>();
+        builder.Services.AddSingleton<HubConnectionRegistry>();
         builder.Services.AddSingleton<JwtIssuer>();
         builder.Services.AddSignalR();
 

@@ -8,7 +8,8 @@ namespace MarqSpec.Client.ProjectX.WebSocket;
 /// <remarks>
 /// This client manages WebSocket connections to the ProjectX real-time API, supporting both market data
 /// (prices, order books, trades) and user data (order updates) streams. The client implements the Observer
-/// pattern for easy subscription to real-time updates and includes automatic reconnection logic.
+/// pattern for easy subscription to real-time updates and includes automatic reconnection that restores
+/// recorded subscriptions before reporting <see cref="ConnectionState.Connected"/> (R-5.3).
 /// </remarks>
 public interface IProjectXWebSocketClient : IAsyncDisposable
 {
@@ -23,6 +24,20 @@ public interface IProjectXWebSocketClient : IAsyncDisposable
     /// Gets the current connection state of the user hub.
     /// </summary>
     ConnectionState UserHubState { get; }
+
+    /// <summary>
+    /// Gets recorded market-hub subscribe intent (R-5.3). This is what the next
+    /// connect or automatic reconnect will try to restore, not a guarantee the
+    /// server is currently delivering.
+    /// </summary>
+    MarketHubSubscriptions MarketSubscriptions { get; }
+
+    /// <summary>
+    /// Gets recorded user-hub subscribe intent (R-5.3). This is what the next
+    /// connect or automatic reconnect will try to restore, not a guarantee the
+    /// server is currently delivering.
+    /// </summary>
+    UserHubSubscriptions UserSubscriptions { get; }
 
     /// <summary>
     /// Occurs when the connection status changes for either hub.
@@ -114,17 +129,21 @@ public interface IProjectXWebSocketClient : IAsyncDisposable
     #region Market Data Events
 
     /// <summary>
-    /// Occurs when a price update is received.
+    /// Occurs when a price update is received. <see cref="PriceUpdate.ContractId"/>
+    /// is the hub argument the event was bound to (R-5.7).
     /// </summary>
     event EventHandler<PriceUpdate>? PriceUpdateReceived;
 
     /// <summary>
-    /// Occurs when an order book update is received.
+    /// Occurs when an order book (DOM) update is received.
+    /// <see cref="OrderBookUpdate.ContractId"/> is the hub argument the event
+    /// was bound to (R-5.7).
     /// </summary>
     event EventHandler<OrderBookUpdate>? OrderBookUpdateReceived;
 
     /// <summary>
-    /// Occurs when a trade update is received.
+    /// Occurs when a trade update is received. <see cref="TradeUpdate.ContractId"/>
+    /// is the hub argument the event was bound to (R-5.7).
     /// </summary>
     event EventHandler<TradeUpdate>? TradeUpdateReceived;
 
