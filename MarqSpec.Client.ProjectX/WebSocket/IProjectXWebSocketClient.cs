@@ -8,7 +8,8 @@ namespace MarqSpec.Client.ProjectX.WebSocket;
 /// <remarks>
 /// This client manages WebSocket connections to the ProjectX real-time API, supporting both market data
 /// (prices, order books, trades) and user data (order updates) streams. The client implements the Observer
-/// pattern for easy subscription to real-time updates and includes automatic reconnection logic.
+/// pattern for easy subscription to real-time updates and includes automatic reconnection that restores
+/// recorded subscriptions before reporting <see cref="ConnectionState.Connected"/> (R-5.3).
 /// </remarks>
 public interface IProjectXWebSocketClient : IAsyncDisposable
 {
@@ -23,6 +24,18 @@ public interface IProjectXWebSocketClient : IAsyncDisposable
     /// Gets the current connection state of the user hub.
     /// </summary>
     ConnectionState UserHubState { get; }
+
+    /// <summary>
+    /// Gets a snapshot of market-hub subscriptions that will be restored after
+    /// an automatic reconnect (R-5.3).
+    /// </summary>
+    MarketHubSubscriptions MarketSubscriptions { get; }
+
+    /// <summary>
+    /// Gets a snapshot of user-hub subscriptions that will be restored after
+    /// an automatic reconnect (R-5.3).
+    /// </summary>
+    UserHubSubscriptions UserSubscriptions { get; }
 
     /// <summary>
     /// Occurs when the connection status changes for either hub.

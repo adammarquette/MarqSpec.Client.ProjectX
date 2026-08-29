@@ -60,7 +60,9 @@ Credentials are supplied by configuration, never compiled in.
 - **R-5.2** Surface account, order, position, trade, price, order-book and trade-notification updates as .NET
   events (observer pattern), deserialized into typed models.
 - **R-5.3** **Reconnect automatically within 5 seconds** of a disconnection, re-acquiring a fresh token on each
-  attempt rather than replaying an expired one.
+  attempt rather than replaying an expired one. After the new connection id is established, restore every
+  recorded hub subscription **before** reporting `Connected`. A restore failure is raised on
+  `MessageSendFailed` (R-5.5) and the hub is reported `Failed`, not `Connected` (gh#87).
 - **R-5.4** Sustain **1000 events/second per stream** without message loss or degradation.
 - **R-5.5** A message that fails to send is reported to observers rather than swallowed
   (`MessageSendFailed`).

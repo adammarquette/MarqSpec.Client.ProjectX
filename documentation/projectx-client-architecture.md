@@ -125,7 +125,11 @@ cannot be read as Buy (R-5.8).
 
 `AccessTokenProvider` re-fetches a **fresh** token on every reconnect rather than closing over the one captured
 at construction; replaying an expired token is how a reconnect loop turns into an auth-failure loop.
-Auto-reconnect backs off 1 s → 5 s, satisfying R-5.3.
+Auto-reconnect backs off 1 s → 5 s, satisfying R-5.3. SignalR automatic reconnect is a **new connection
+id**, so server-side hub subscriptions do not survive it: every successful `SubscribeTo*` is recorded per
+hub and re-invoked on `Reconnected` **before** `Connected` is published. A failed restore raises
+`MessageSendFailed` and reports `Failed` (gh#87). The current sets are readable as
+`MarketSubscriptions` and `UserSubscriptions`.
 
 The type is `IAsyncDisposable`. A consumer that abandons it without disposing leaks both connections.
 

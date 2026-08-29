@@ -28,7 +28,7 @@ A .NET client library for the ProjectX REST API, providing easy access to market
 - WebSocket streaming via two SignalR hubs (Market Hub + User Hub)
 - Subscribe to real-time price updates, order book depth, and trade executions
 - Subscribe to real-time order status updates per account
-- Automatic reconnection with exponential backoff (1s initial, 5s max)
+- Automatic reconnection with exponential backoff (1s initial, 5s max), restoring subscriptions before reporting Connected
 - Connection status monitoring via events
 - Thread-safe, high-throughput (1000+ events/second)
 
@@ -274,7 +274,7 @@ Monitor state transitions via the `ConnectionStatusChanged` event, which provide
 
 ### Auto-Reconnection
 
-Automatic reconnection is enabled by default. When a connection drops, the client uses exponential backoff starting at 1 second up to a maximum of 5 seconds. During reconnection, the `ConnectionStatusChanged` event fires with `ConnectionState.Reconnecting`. Configure reconnection behavior in `appsettings.json`:
+Automatic reconnection is enabled by default. When a connection drops, the client uses exponential backoff starting at 1 second up to a maximum of 5 seconds. During reconnection, the `ConnectionStatusChanged` event fires with `ConnectionState.Reconnecting`. SignalR automatic reconnect is a new connection id, so server-side subscriptions are gone: the client re-invokes every recorded `SubscribeTo*` against the new connection **before** reporting `Connected`. A failed restore raises `MessageSendFailed` and reports `Failed`, not `Connected`. The sets being restored are readable as `MarketSubscriptions` and `UserSubscriptions`. Configure reconnection behavior in `appsettings.json`:
 
 ```json
 {
@@ -379,6 +379,8 @@ serialized and ignored, so they filter nothing; filter the returned collection i
 |----------|------|-------------|
 | `MarketHubState` | `ConnectionState` | Current connection state of the market hub |
 | `UserHubState` | `ConnectionState` | Current connection state of the user hub |
+| `MarketSubscriptions` | `MarketHubSubscriptions` | Snapshot of market-hub subscriptions restored after reconnect |
+| `UserSubscriptions` | `UserHubSubscriptions` | Snapshot of user-hub subscriptions restored after reconnect |
 
 #### Market Data Subscriptions
 
@@ -492,6 +494,10 @@ A single DOM (depth-of-market) row from `GatewayDepth`, not a full book snapshot
 | `Connected` | Active and receiving data |
 | `Reconnecting` | Automatically reconnecting after a disconnection |
 | `Failed` | Connection failed |
+
+#### MarketHubSubscriptions / UserHubSubscriptions
+
+Read-only snapshots of what the client will restore after reconnect. `MarketHubSubscriptions` holds the contract-id sets for quotes, depth and trades. `UserHubSubscriptions` holds the account-updates flag and the account-id sets for orders, positions and trade notifications.
 
 #### OrderStatus
 
