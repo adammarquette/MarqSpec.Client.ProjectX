@@ -12,8 +12,8 @@ Weight findings accordingly.
 The venue offers **no idempotency key**. A retried request is a *second request*, and for order placement that
 means a second live position.
 
-- `POST /api/Order/place` must never be auto-retried. Check that a change to the resilience pipeline, the
-  `ShouldHandle` predicate, or the Refit registration has not quietly pulled it back into the retry set.
+- `POST /api/Order/place` and `POST /api/Position/partialCloseContract` must never be auto-retried. Check that a change to the resilience pipeline, the
+  `ShouldHandle` predicate, or the Refit registration has not quietly pulled either back into the retry set.
 - A **timeout is not a failure** — it is an unknown outcome. `HttpClient` surfaces one as a
   `TaskCanceledException` carrying its *internal* token, so a `catch (OperationCanceledException) when
   (ct.IsCancellationRequested)` filter **does not match it** and the code falls through to whatever handles a

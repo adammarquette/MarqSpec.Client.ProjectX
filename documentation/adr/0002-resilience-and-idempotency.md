@@ -17,6 +17,13 @@ differ per endpoint:
 - A retried **cancel** of an already-cancelled order is a no-op. Harmless.
 - A retried **place** is a **second live order**. Not harmless — it doubles a position with real money behind
   it.
+- A retried **sized partial close** reduces twice. Not harmless either — a reduce-by-1 retried three times takes
+  up to four contracts off, and on a small position it overshoots past flat into an **opposing position**
+  (gh#98). Its effect **accumulates** on every replay, which is what puts it in the same class as a placement.
+  A **full** close and a **modify** do not accumulate — closing an already-flat position is a no-op, and a
+  modify sets absolute values — but neither is unconditionally safe to replay: a retried close that lands after
+  a new entry fills closes the new position, and a retried modify that lands after a later modify reverts it.
+  Both stay in the retry set for now; see *Follow-ups*.
 
 The dangerous case is not an obvious failure. It is the ambiguous one: the first attempt reaches the venue and
 books the order, and then the acknowledgement is lost to a transport fault, or a `5xx` arrives *after*
@@ -28,7 +35,12 @@ endpoint, including `POST /api/Order/place`.
 
 ## Decision
 
-**Retry transient faults on idempotent endpoints only. `POST /api/Order/place` is excluded, permanently.**
+**Retry transient faults on idempotent endpoints only. The non-idempotent writes — `POST /api/Order/place` and
+`POST /api/Position/partialCloseContract` — are excluded, permanently.**
+
+> *Amended 2026-11-28 (gh#98):* the exclusion originally named only `/Order/place`, and its predicate was
+> `IsOrderPlacement`. A sized partial close accumulates across replays in exactly the same way and had never
+> inherited the exclusion, so the predicate is now `IsNonIdempotentWrite` and names both routes.
 
 - The retry predicate lives in `ServiceCollectionExtensions.ShouldRetryOutcome`, **factored out of the
   registration lambda** so it can be unit-tested against real request and outcome shapes rather than only
@@ -37,11 +49,13 @@ endpoint, including `POST /api/Order/place`.
 - `429` honours `Retry-After` in **both** encodings the header permits: `Delta` (delta-seconds) and `Date` (an
   HTTP-date, converted against `UtcNow` and ignored if it lands in the past). Anything unusable falls through
   to exponential backoff.
-- **The guard is asymmetric on purpose.** `IsOrderPlacement(null)` returns `false`, so an unidentifiable request
-  is treated as *not* a placement and keeps the standard retry. The guard can therefore only ever **remove**
-  retries from a confirmed placement — it can never add double-place risk relative to the pipeline without it.
-- A fault on a placement surfaces to the caller as an **indeterminate outcome**, not a failure. The consumer
-  owns reconciliation (R-3.4, R-8).
+- **The guard is asymmetric on purpose.** `IsNonIdempotentWrite(null)` returns `false`, so an unidentifiable
+  request is treated as idempotent and keeps the standard retry. The guard can therefore only ever **remove**
+  retries from a confirmed non-idempotent write — it can never add risk relative to the pipeline without it.
+- **The match is a route suffix, so a wrong literal fails open** — the route silently keeps its retries. Each
+  suffix is pinned by a unit test and by a fake-gateway request count, and checked against `swagger.json`.
+- A fault on a non-idempotent write surfaces to the caller as an **indeterminate outcome**, not a failure. The
+  consumer owns reconciliation (R-3.4, R-4.4, R-8).
 
 Adding an endpoint to the retry set requires stating, in the PR, why resending it is safe.
 
@@ -62,7 +76,7 @@ which is the only case that actually matters.
 
 ## Consequences
 
-- An order placement that hits a transient fault fails on the first attempt. That is intended: a visible failure
+- An order placement or a partial close that hits a transient fault fails on the first attempt. That is intended: a visible failure
   the consumer must resolve beats a silent duplicate.
 - The consumer must implement reconciliation. trading-copilot does; any other consumer inherits the obligation,
   which is why R-3.4 states it as a requirement rather than leaving it implied.
@@ -78,5 +92,6 @@ which is the only case that actually matters.
   and falls through to the hard-failure path — which then reports "not placed" for a possibly-live order. That
   is a consumer-side trap; it is recorded in
   [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) so review catches it.
-- Cancel and modify are currently retried. Cancel is safely idempotent; **modify is less obviously so** and has
-  not been analysed. Worth a follow-up issue.
+- Cancel, modify and full close are currently retried. Cancel is safely idempotent; **modify and full close are
+  less obviously so** — a late replay can revert a later modify, or close a position opened after the original
+  close — and have not been analysed beyond that. Worth a follow-up issue.

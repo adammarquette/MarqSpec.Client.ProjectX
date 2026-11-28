@@ -68,7 +68,8 @@ Two things to know before you use it in anger:
 - **`POST /api/Order/place` is never automatically retried.** The gateway offers no idempotency key, so a
   retried placement is a second live order. A transport fault on a placement is an *indeterminate* outcome, not
   a failure — your code owns the reconciliation
-  ([ADR-0002](documentation/adr/0002-resilience-and-idempotency.md)).
+  ([ADR-0002](documentation/adr/0002-resilience-and-idempotency.md)). **The same holds for
+  `POST /api/Position/partialCloseContract`**: a retried partial close reduces twice.
 - **`IProjectXWebSocketClient` is registered as a singleton**, deliberately, and consumers depend on that
   ([ADR-0004](documentation/adr/0004-hub-client-is-a-singleton.md)).
 

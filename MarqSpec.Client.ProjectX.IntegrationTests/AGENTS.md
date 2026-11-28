@@ -64,7 +64,7 @@ runs.
 - `_control/fault` arms a scenario: status, how many requests it affects, `Retry-After` in either encoding, a
   delay. It is consumed per matching request, so "fail the next 3" means exactly 3.
 - `_control/requests?path=…` is the request count. This is the assertion that proves a retry happened — or, for
-  `/api/Order/place`, that it did not.
+  `/api/Order/place` and `/api/Position/partialCloseContract`, that it did not.
 - `_control/emit/*` pushes hub events to the **subscribe group**, not every connection — a reconnect
   that never re-subscribes stays silent.
 - `_control/abort/{hub}` drops every live connection on `market` or `user` so SignalR automatic
@@ -79,7 +79,7 @@ favour* is the worst outcome available: green locally, broken against the venue.
 
 Order-path behaviour first, because it is where being wrong costs money:
 
-- Placement is **never** retried, on any fault (ADR-0002, R-3.3).
+- Placement and a sized partial close are **never** retried, on any fault (ADR-0002, R-3.3, R-4.4).
 - A transport fault on a placement surfaces as an indeterminate outcome, not a success and not a plain failure.
 - Idempotent reads *are* retried, and stop after the configured attempts.
 - `Retry-After` in **both** encodings.

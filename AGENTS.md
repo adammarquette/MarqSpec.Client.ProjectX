@@ -54,8 +54,9 @@ before starting, and add dated entries only when nothing formal fits.
   belong to the consumer. This library holds no limit and refuses no order on policy grounds — a refusal here
   would put an enforcement point *below* the parent's gate, in the wrong repository, where its gate cannot see
   it. Transport-level refusals (a malformed request, a missing credential) are not policy and are fine.
-- **Idempotency is a property of the endpoint, not of the retry policy.** `POST /api/Order/place` is not
-  idempotent: a retried "timeout" can place a second live order. Anything that resends must prove the endpoint
+- **Idempotency is a property of the endpoint, not of the retry policy.** `POST /api/Order/place` and
+  `POST /api/Position/partialCloseContract` are not idempotent: a retried "timeout" can place a second live
+  order, or reduce a position twice. Anything that resends must prove the endpoint
   tolerates it — see [ADR-0002](documentation/adr/0002-resilience-and-idempotency.md).
 - **Test-first is the Definition of Done.** No new public method without a failing test written first; the paths
   the parent's safety-critical code sits on — order placement, position close, hub reconnect, token refresh —

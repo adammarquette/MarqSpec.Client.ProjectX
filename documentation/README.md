@@ -32,7 +32,7 @@ nothing is rewritten in place. Records grow by dated `## Update` entries under a
 | ADR | ~tok | Open it when |
 |---|---|---|
 | [0001](adr/0001-refit-typed-rest-client.md) | 0.5K | Changing the REST interface, the facade, or serializer settings |
-| [0002](adr/0002-resilience-and-idempotency.md) | 0.9K | **Changing anything about retry.** The order-placement exclusion lives here |
+| [0002](adr/0002-resilience-and-idempotency.md) | 0.9K | **Changing anything about retry.** The non-idempotent-write exclusion (place, partial close) lives here |
 | [0003](adr/0003-jwt-acquisition-and-cache.md) | 0.7K | Touching auth, token lifetime, or the `ApiKey`-is-a-username trap |
 | [0004](adr/0004-hub-client-is-a-singleton.md) | 0.5K | Changing a DI lifetime — the consumer depends on the singleton |
 | [0005](adr/0005-multi-targeting.md) | 0.4K | Adding a dependency, or wondering why `net8.0` is still here |

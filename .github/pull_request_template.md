@@ -31,7 +31,7 @@ Closes #
 
 <!-- Delete this section if it genuinely does not apply. If you are unsure whether it applies, it applies. -->
 
-- [ ] Nothing non-idempotent became retryable. `POST /api/Order/place` is still excluded.
+- [ ] Nothing non-idempotent became retryable. `POST /api/Order/place` and `POST /api/Position/partialCloseContract` are still excluded.
 - [ ] A timeout or cancellation is treated as an **unknown** outcome, not a failure — no path reports
       "not placed" for a request that may be live.
 - [ ] New wire enum values are handled exhaustively; no zero-value default is permissive.

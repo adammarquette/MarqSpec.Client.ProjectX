@@ -218,14 +218,22 @@ public static class ServiceCollectionExtensions
     /// against the real request and outcome shapes.
     /// </summary>
     /// <remarks>
-    /// Placing an order is <b>non-idempotent</b>: if the first attempt reached the gateway and booked the order
-    /// but the acknowledgement was lost to a transport fault, or a <c>5xx</c> came back <i>after</i> the order
-    /// was accepted, a retry would place a <b>second live order</b>. So a placement is <b>never</b> retried
-    /// (gh#629) — its fault surfaces to the caller, which classifies it as an <i>indeterminate</i> venue outcome
-    /// and leaves the durable intent (<c>Taking</c> / <c>Firing</c>) for reconciliation rather than releasing a
-    /// maybe-live order. Every other route here is a read/search or an idempotent cancel, so the standard
-    /// transient-fault retry (transport fault, <c>429</c>, <c>5xx</c>) still applies. If the request cannot be
-    /// identified — a defensive null — it is treated as "not a placement" and the standard retry still covers
+    /// Two writes here are <b>non-idempotent</b> — their effect accumulates across replays — so neither is ever
+    /// retried (ADR-0002):
+    /// <list type="bullet">
+    /// <item><description><c>POST /api/Order/place</c>: if the first attempt reached the gateway and booked the
+    /// order but the acknowledgement was lost to a transport fault, or a <c>5xx</c> came back <i>after</i> the
+    /// order was accepted, a retry would place a <b>second live order</b> (gh#629).</description></item>
+    /// <item><description><c>POST /api/Position/partialCloseContract</c>: a sized reduce run twice reduces twice,
+    /// so a retried lost ack can take more contracts off than asked and overshoot past flat into an
+    /// <b>opposing position</b> (gh#98).</description></item>
+    /// </list>
+    /// Their fault surfaces to the caller, which classifies it as an <i>indeterminate</i> venue outcome and
+    /// reconciles rather than assuming it did not happen. Every other route here is a read/search, a cancel, a
+    /// full close or a modify — none of which accumulates on replay — so the standard transient-fault retry
+    /// (transport fault, <c>429</c>, <c>5xx</c>) still applies. A late replay of a modify or a full close is not
+    /// risk-free and remains an open follow-up in ADR-0002. If the request
+    /// cannot be identified — a defensive null — it is treated as idempotent and the standard retry still covers
     /// it, so this guard is never <i>less</i> resilient than the pipeline was before it.
     /// </remarks>
     internal static bool ShouldRetryOutcome(
@@ -233,7 +241,7 @@ public static class ServiceCollectionExtensions
         Exception? exception,
         HttpResponseMessage? response)
     {
-        if (IsOrderPlacement(request))
+        if (IsNonIdempotentWrite(request))
         {
             return false;
         }
@@ -244,14 +252,28 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Whether <paramref name="request"/> is the non-idempotent order-placement call
-    /// (<c>POST /api/Order/place</c>) that must never be auto-retried (gh#629). A null or route-less request is
-    /// treated as "not a placement", so this guard only ever <i>removes</i> retries from a confirmed placement
-    /// and never adds double-place risk beyond the pipeline's prior behaviour.
+    /// Whether <paramref name="request"/> is one of the non-idempotent writes that must never be auto-retried:
+    /// order placement (<c>POST /api/Order/place</c>, gh#629) or a sized partial close
+    /// (<c>POST /api/Position/partialCloseContract</c>, gh#98). A null or route-less request is treated as
+    /// idempotent, so this guard only ever <i>removes</i> retries from a confirmed non-idempotent write and never
+    /// adds risk beyond the pipeline's prior behaviour.
     /// </summary>
-    internal static bool IsOrderPlacement(HttpRequestMessage? request) =>
+    /// <remarks>
+    /// This is a <b>suffix match</b>, so a wrong literal fails <i>open</i> — the route keeps being retried and
+    /// nothing else breaks. The routes are the ones <c>swagger.json</c> and <c>IProjectXRestApi</c> declare; a new
+    /// non-idempotent endpoint belongs in this list.
+    /// </remarks>
+    internal static bool IsNonIdempotentWrite(HttpRequestMessage? request) =>
         request?.RequestUri is { } uri
-        && uri.AbsolutePath.EndsWith("/Order/place", StringComparison.OrdinalIgnoreCase);
+        && Array.Exists(
+            _nonIdempotentRouteSuffixes,
+            suffix => uri.AbsolutePath.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+
+    private static readonly string[] _nonIdempotentRouteSuffixes =
+    [
+        "/Order/place",
+        "/Position/partialCloseContract",
+    ];
 
     /// <summary>
     /// HTTP message handler that adds authentication to requests.

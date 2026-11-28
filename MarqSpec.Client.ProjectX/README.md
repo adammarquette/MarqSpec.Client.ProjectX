@@ -697,6 +697,8 @@ Thrown when API requests fail. Includes:
 
 ### Retry Policy with Polly
 - Automatic retry for transient failures: `HttpRequestException`, HTTP 429 (Too Many Requests), and HTTP 500+ server errors
+- **Except** the two non-idempotent writes, which are never retried: `POST /api/Order/place` and
+  `POST /api/Position/partialCloseContract`. Their transient fault surfaces to you as an indeterminate outcome
 - Exponential backoff strategy (configurable initial and max delay)
 - Retry-After header is honored on 429 responses (both delta-seconds and HTTP-date formats)
 - Configurable retry attempts and delays
@@ -724,7 +726,7 @@ All keys sit under the `ProjectX` section.
 | `ApiKey` | string | *required* | Your ProjectX API key |
 | `ApiSecret` | string | *required* | Your ProjectX API secret |
 | `BaseUrl` | string | `https://api.topstepx.com` | Base URL for the REST API |
-| `RetryOptions.MaxRetries` | int | 3 | Retry attempts on a transient fault. Never applies to `POST /api/Order/place` |
+| `RetryOptions.MaxRetries` | int | 3 | Retry attempts on a transient fault. Never applies to `POST /api/Order/place` or `POST /api/Position/partialCloseContract` |
 | `RetryOptions.InitialDelay` | TimeSpan | `00:00:01` | First backoff delay |
 | `RetryOptions.MaxDelay` | TimeSpan | `00:00:30` | Backoff ceiling |
 | `WebSocket.UserHubUrl` | string | `https://rtc.topstepx.com/hubs/user` | User hub URL |
