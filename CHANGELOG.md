@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `POST /api/Position/partialCloseContract` is no longer auto-retried on a transport fault, `429` or `5xx`
+  (gh#98). A sized partial close is non-idempotent, so a retried lost acknowledgement could reduce a position
+  twice and overshoot into an opposing one. Its fault now surfaces to the caller, as a placement's does.
+
 ## [3.0.0] - 2026-08-28
 
 ### Breaking changes

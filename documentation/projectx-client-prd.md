@@ -53,6 +53,10 @@ Credentials are supplied by configuration, never compiled in.
 - **R-4.1** Search open positions; close and partially close a position.
 - **R-4.2** Trade search over a bounded window.
 - **R-4.3** Account search, with an active-only filter.
+- **R-4.4** **`POST /api/Position/partialCloseContract` is never automatically retried.** A sized partial close
+  run twice reduces twice, so a retried lost acknowledgement can overshoot past flat into an opposing position
+  (gh#98). Like a placement, its transient fault surfaces to the caller as an indeterminate outcome. See
+  [ADR-0002](adr/0002-resilience-and-idempotency.md).
 
 ## R-5 — Real-time streaming
 
@@ -79,7 +83,7 @@ Credentials are supplied by configuration, never compiled in.
 ## R-6 — Resilience
 
 - **R-6.1** Transient faults — network errors, 5xx, 429 — are retried with exponential backoff, capped at 3
-  attempts, **on idempotent endpoints only** (R-3.3).
+  attempts, **on idempotent endpoints only** (R-3.3, R-4.4).
 - **R-6.2** A 429 honours the `Retry-After` header in **both** its delta-seconds and its HTTP-date forms.
 - **R-6.3** The client degrades gracefully under partial gateway outage.
 
@@ -182,5 +186,6 @@ strategies · multi-account orchestration · **any risk, sizing or policy decisi
 
 | Date | Change |
 |---|---|
+| 2026-11-28 | Added R-4.4 (a sized partial close is never automatically retried, gh#98). |
 | 2026-08-28 | Added R-5.7 (hub `contractId` on market events) and R-5.8 (trade direction is nullable; wire `0` stays Buy). |
 | 2026-08-05 | Restructured from the root `PRD.md` into stable `R-#` ids. Added R-8 (the client decides nothing) and R-3.3/R-3.4 (idempotency and unknown outcomes), which were established practice and merged fixes but had never been written as requirements. Moved dependency versions out to `Directory.Packages.props`. |

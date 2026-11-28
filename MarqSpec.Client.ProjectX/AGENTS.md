@@ -37,8 +37,9 @@ the XML, so a missing comment is a build error, not a style note.
   the consumer, above this transport. A policy refusal added here would sit *below* the parent's risk gate,
   where that gate cannot see or audit it. Rejecting a malformed request or a missing credential is transport,
   not policy, and is fine.
-- **It does not retry what it cannot safely retry.** `POST /api/Order/place` is excluded from the resilience
-  pipeline: a retried timeout can place a second live order, and the venue has no idempotency key. Any new
+- **It does not retry what it cannot safely retry.** `POST /api/Order/place` and
+  `POST /api/Position/partialCloseContract` are excluded from the resilience pipeline: a retried timeout can place
+  a second live order or reduce a position twice, and the venue has no idempotency key. Any new
   endpoint added to the retry set must state, in its PR, why resending is safe
   ([ADR-0002](../documentation/adr/0002-resilience-and-idempotency.md)).
 - **It does not log credentials.** Not the API key, not the secret, not the bearer token, not a request body

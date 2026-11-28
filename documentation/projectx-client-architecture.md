@@ -54,20 +54,26 @@ Two consequences of that order are worth knowing before you change it:
   idempotency guard's view of the request. Do not reorder these without reading
   [ADR-0002](adr/0002-resilience-and-idempotency.md).
 
-### Retry — and the one endpoint that is excluded
+### Retry — and the endpoints that are excluded
 
 `ShouldRetryOutcome` is factored out of the registration lambda specifically so it can be unit-tested against
 real request and outcome shapes. It retries on `HttpRequestException`, `429`, and `>= 500` — **except** when
-`IsOrderPlacement(request)` is true.
+`IsNonIdempotentWrite(request)` is true — `POST /api/Order/place` or `POST /api/Position/partialCloseContract`.
 
 **`POST /api/Order/place` is never retried.** The gateway offers no idempotency key. If the first attempt
 reached the venue and booked the order but the acknowledgement was lost, a retry places a *second live order*.
 So the fault surfaces to the caller, which classifies it as an **indeterminate** outcome and reconciles, rather
 than the transport quietly deciding to try again.
 
-The guard is deliberately asymmetric: an unidentifiable request (a defensive null) is treated as *not* a
-placement, so the guard only ever **removes** retries from a confirmed placement and can never add double-place
-risk relative to the pipeline without it.
+**`POST /api/Position/partialCloseContract` is never retried either** (R-4.4, gh#98). A sized reduce run twice
+reduces twice, so a retried lost ack can take more contracts off than asked and overshoot into an opposing
+position. Full close, cancel and modify stay in the retry set: none of them accumulates on replay, though a
+late replay of a modify or a full close is not risk-free and is an open follow-up in
+[ADR-0002](adr/0002-resilience-and-idempotency.md).
+
+The guard is deliberately asymmetric: an unidentifiable request (a defensive null) is treated as idempotent, so
+the guard only ever **removes** retries from a confirmed non-idempotent write and can never add risk relative to
+the pipeline without it.
 
 `Retry-After` on a 429 is honoured in both encodings the header allows — `Delta` (delta-seconds) and `Date` (an
 HTTP-date), the latter converted against `DateTimeOffset.UtcNow` and ignored if it lands in the past. A missing
