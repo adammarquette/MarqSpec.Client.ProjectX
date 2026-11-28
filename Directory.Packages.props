@@ -10,7 +10,8 @@
     The library's dependency surface is part of its public contract (R-10.5) — trading-copilot
     compiles against this assembly, so a version conflict here becomes their problem. Adding a
     dependency needs a line in the PR saying why, and it must support net8.0, not just restore
-    (ADR-0005).
+    (ADR-0005). The Microsoft.Extensions.* and SignalR.Client majors are held at 10.x for the same reason;
+    dependabot.yml ignores them (gh#123).
   -->
 
   <PropertyGroup>
