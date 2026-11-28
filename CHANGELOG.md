@@ -12,6 +12,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-11-28
+
+A patch release. Nothing on the public API changed; the one behaviour change removes retries from a
+non-idempotent write.
+
+### Fixed
+
+- `POST /api/Position/partialCloseContract` is no longer auto-retried on a transport fault, `429` or `5xx`
+  (gh#98, PR #118). A sized partial close is non-idempotent, so a retried lost acknowledgement could reduce a
+  position twice and overshoot into an opposing one. Its fault now surfaces to the caller, as a placement's
+  does, and the caller should treat it as an indeterminate outcome (R-4.4,
+  [ADR-0002](documentation/adr/0002-resilience-and-idempotency.md))
+
+### Security
+
+- `Microsoft.AspNetCore.SignalR.Client` and the `Microsoft.Extensions.*` family **10.0.11 → 10.0.15** (PR #110).
+  Clears the high-severity NuGetAudit advisory on `Microsoft.AspNetCore.SignalR.Common` 10.0.11
+  (GHSA-334f-vvp4-7g6p, fixed in 10.0.13), which `SignalR.Client` 10.0.11 pulled in transitively
+
+### Changed
+
+- Refit / Refit.HttpClientFactory **15.2.0 → 16.4.0** (PR #116). The REST interface and serializer settings are
+  unchanged, and `POST /api/Order/place` and `partialCloseContract` are still excluded from retry. A consumer that
+  references Refit directly resolves 16.4.0 or later
+- Polly.Core **8.7.0 → 8.9.1** (PR #104, PR #109)
+- Microsoft.Extensions.Http.Resilience **10.9.0 → 10.11.1** (PR #125)
+
+### Build and CI (no effect on the package)
+
+- MinVer 7.0.0 → 8.0.0, build-time only (PR #99)
+- Test stack: Microsoft.NET.Test.Sdk 18.12.0, xunit.runner.visualstudio 4.0.1, coverlet.collector 10.1.1
+  (PR #113)
+- Dependabot holds the .NET 11 package majors while `net8.0` is a target: those packages ship no `net8.0` build
+  (gh#123, PR #124)
+- The integration tier runs on `net8.0` as well as `net10.0`, and the dev container carries the ASP.NET Core 8
+  runtime, so the shipped `net8.0` assembly is now exercised over real HTTP and WebSocket (gh#67, PR #128)
+
 ## [3.0.0] - 2026-08-28
 
 ### Breaking changes

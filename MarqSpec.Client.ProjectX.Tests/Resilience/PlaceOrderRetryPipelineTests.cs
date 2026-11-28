@@ -94,6 +94,31 @@ public class PlaceOrderRetryPipelineTests
     }
 
     [Fact]
+    public async Task PartialClosePost_OnServerError_IsSentExactlyOnce()
+    {
+        var (factory, handler) = BuildPipeline();
+        var client = factory.CreateClient("gw");
+
+        await client.PostAsync("/api/Position/partialCloseContract", content: null);
+
+        handler.Attempts["/api/Position/partialCloseContract"].Should().Be(1,
+            "a sized partial close accumulates across replays -- the pipeline must not retry it on a 5xx (gh#98)");
+    }
+
+    [Fact]
+    public async Task PartialClosePost_OnTransportFault_IsSentExactlyOnce()
+    {
+        var (factory, handler) = BuildPipeline(new HttpRequestException("connection reset"));
+        var client = factory.CreateClient("gw");
+
+        var act = async () => await client.PostAsync("/api/Position/partialCloseContract", content: null);
+
+        await act.Should().ThrowAsync<HttpRequestException>();
+        handler.Attempts["/api/Position/partialCloseContract"].Should().Be(1,
+            "a lost ack after an executed partial close must never be retried into a second reduction (gh#98)");
+    }
+
+    [Fact]
     public async Task SearchPost_OnServerError_IsRetried()
     {
         var (factory, handler) = BuildPipeline();

@@ -9,7 +9,8 @@ namespace MarqSpec.Client.ProjectX.Tests.Resilience;
 /// acknowledgement or a post-acceptance <c>5xx</c> would place a second live order (gh#629). These pin the real
 /// <see cref="ServiceCollectionExtensions.ShouldRetryOutcome"/> the pipeline is wired to — a placement fault is
 /// surfaced to the caller (which classifies it as indeterminate and leaves the intent for reconciliation),
-/// while an idempotent read still gets the standard transient-fault retry.
+/// while an idempotent read still gets the standard transient-fault retry. A sized partial close is the same
+/// class of write and is pinned alongside it (gh#98).
 /// </summary>
 public class PlaceOrderRetryTests
 {
@@ -18,6 +19,7 @@ public class PlaceOrderRetryTests
 
     private static readonly HttpRequestMessage _place = Request("/api/Order/place");
     private static readonly HttpRequestMessage _search = Request("/api/Order/search");
+    private static readonly HttpRequestMessage _partialClose = Request("/api/Position/partialCloseContract");
 
     [Fact]
     public void ShouldRetryOutcome_ForPlaceOnTransportFault_DoesNotRetry()
@@ -42,6 +44,32 @@ public class PlaceOrderRetryTests
         ServiceCollectionExtensions
             .ShouldRetryOutcome(_place, exception: null, new HttpResponseMessage(HttpStatusCode.TooManyRequests))
             .Should().BeFalse("even a 429 is not safe to auto-retry for a non-idempotent place");
+    }
+
+    // gh#98: a sized partial close accumulates across replays exactly as a placement does -- reduce-by-1
+    // retried three times takes up to four contracts off, and can overshoot past flat into an opposing position.
+    [Fact]
+    public void ShouldRetryOutcome_ForPartialCloseOnTransportFault_DoesNotRetry()
+    {
+        ServiceCollectionExtensions
+            .ShouldRetryOutcome(_partialClose, new HttpRequestException("connection reset"), response: null)
+            .Should().BeFalse("retrying a partial close after a lost ack would reduce the position twice (gh#98)");
+    }
+
+    [Fact]
+    public void ShouldRetryOutcome_ForPartialCloseOnServerError_DoesNotRetry()
+    {
+        ServiceCollectionExtensions
+            .ShouldRetryOutcome(_partialClose, exception: null, new HttpResponseMessage(HttpStatusCode.InternalServerError))
+            .Should().BeFalse("a 5xx may follow an accepted partial close -- a retry would reduce twice (gh#98)");
+    }
+
+    [Fact]
+    public void ShouldRetryOutcome_ForPartialCloseOnTooManyRequests_DoesNotRetry()
+    {
+        ServiceCollectionExtensions
+            .ShouldRetryOutcome(_partialClose, exception: null, new HttpResponseMessage(HttpStatusCode.TooManyRequests))
+            .Should().BeFalse("even a 429 is not safe to auto-retry for a non-idempotent partial close (gh#98)");
     }
 
     [Fact]
@@ -97,20 +125,23 @@ public class PlaceOrderRetryTests
 
     [Theory]
     [InlineData("/api/Order/place", true)]
+    [InlineData("/api/Position/partialCloseContract", true)]
+    [InlineData("/API/POSITION/PARTIALCLOSECONTRACT", true)]
     [InlineData("/api/Order/search", false)]
     [InlineData("/api/Order/searchOpen", false)]
     [InlineData("/api/Order/cancel", false)]
     [InlineData("/api/Order/modify", false)]
     [InlineData("/api/Position/closeContract", false)]
+    [InlineData("/api/Position/searchOpen", false)]
     [InlineData("/api/Status/ping", false)]
-    public void IsOrderPlacement_IdentifiesOnlyThePlaceRoute(string path, bool expected)
+    public void IsNonIdempotentWrite_IdentifiesOnlyThePlaceAndPartialCloseRoutes(string path, bool expected)
     {
-        ServiceCollectionExtensions.IsOrderPlacement(Request(path)).Should().Be(expected);
+        ServiceCollectionExtensions.IsNonIdempotentWrite(Request(path)).Should().Be(expected);
     }
 
     [Fact]
-    public void IsOrderPlacement_ForNullRequest_IsFalse()
+    public void IsNonIdempotentWrite_ForNullRequest_IsFalse()
     {
-        ServiceCollectionExtensions.IsOrderPlacement(null).Should().BeFalse();
+        ServiceCollectionExtensions.IsNonIdempotentWrite(null).Should().BeFalse();
     }
 }

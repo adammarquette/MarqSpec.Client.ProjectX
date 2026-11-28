@@ -18,9 +18,11 @@ COPY MarqSpec.Client.ProjectX/ MarqSpec.Client.ProjectX/
 COPY MarqSpec.Client.ProjectX.FakeGateway/ MarqSpec.Client.ProjectX.FakeGateway/
 
 RUN dotnet publish MarqSpec.Client.ProjectX.FakeGateway/MarqSpec.Client.ProjectX.FakeGateway.csproj \
-    -c Release -o /app --no-restore \
+    -c Release -f net10.0 -o /app --no-restore \
     -p:MinVerVersionOverride=$VERSION
 
+# The fake multi-targets net8.0;net10.0 so the integration tier can run on both (gh#67); the image ships the
+# net10.0 build only.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app .

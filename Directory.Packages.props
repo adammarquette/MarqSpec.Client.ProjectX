@@ -10,7 +10,8 @@
     The library's dependency surface is part of its public contract (R-10.5) — trading-copilot
     compiles against this assembly, so a version conflict here becomes their problem. Adding a
     dependency needs a line in the PR saying why, and it must support net8.0, not just restore
-    (ADR-0005).
+    (ADR-0005). The Microsoft.Extensions.* and SignalR.Client majors are held at 10.x for the same reason;
+    dependabot.yml ignores them (gh#123).
   -->
 
   <PropertyGroup>
@@ -20,13 +21,13 @@
 
   <ItemGroup Label="Build">
     <!-- Versioning from the git tag (ADR-0006). Build-time only; never a runtime dependency. -->
-    <PackageVersion Include="MinVer" Version="7.0.0" />
+    <PackageVersion Include="MinVer" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Library — transport">
-    <PackageVersion Include="Refit" Version="15.2.0" />
-    <PackageVersion Include="Refit.HttpClientFactory" Version="15.2.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.11" />
+    <PackageVersion Include="Refit" Version="16.4.0" />
+    <PackageVersion Include="Refit.HttpClientFactory" Version="16.4.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.15" />
   </ItemGroup>
 
   <ItemGroup Label="Library — resilience">
@@ -34,15 +35,15 @@
       Http.Resilience and Polly.Core ship from dotnet/extensions, a different release train from the
       Microsoft.Extensions.* packages below, so their versions are not expected to match.
     -->
-    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.9.0" />
-    <PackageVersion Include="Polly.Core" Version="8.7.0" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.11.1" />
+    <PackageVersion Include="Polly.Core" Version="8.9.1" />
   </ItemGroup>
 
   <ItemGroup Label="Library — configuration, options, logging">
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.15" />
   </ItemGroup>
 
   <ItemGroup Label="Apps and tests — configuration hosts">
@@ -52,22 +53,22 @@
       exactly how NU1109 arrives — a transitive Microsoft.Extensions.Logging 10.0.11 against a lower
       centrally pinned Abstractions. Bump the group, not one member of it.
     -->
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.15" />
   </ItemGroup>
 
   <ItemGroup Label="Test stack">
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
     <PackageVersion Include="FakeItEasy" Version="9.0.1" />
     <!-- LICENSE CAP: FluentAssertions v8+ is commercially licensed. Do not bump past 7.x. -->
     <PackageVersion Include="FluentAssertions" Version="7.2.2" />
-    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+    <PackageVersion Include="coverlet.collector" Version="10.1.1" />
   </ItemGroup>
 
 </Project>

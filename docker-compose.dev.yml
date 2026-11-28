@@ -1,7 +1,10 @@
 # Toolchain override: run the build, tests and formatter inside a pinned SDK container.
 #
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm sdk dotnet test
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm sdk dotnet format --verify-no-changes
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --build sdk dotnet test
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --build sdk dotnet format --verify-no-changes
+#
+# --build matters: the sdk image is built locally from the dockerfile_inline below, and without it a change to
+# that Dockerfile is silently not applied to an image already built.
 #
 # Two reasons this exists.
 #
@@ -14,7 +17,15 @@
 
 services:
   sdk:
-    image: mcr.microsoft.com/dotnet/sdk:10.0
+    # The 10.0 SDK builds both target frameworks but carries only the 10.0 runtimes. The net8.0 legs of both test
+    # tiers need Microsoft.NETCore.App and Microsoft.AspNetCore.App 8.x as well, so they are layered in from the
+    # official runtime image rather than fetched by a script (ADR-0005, gh#67).
+    image: projectx-sdk-dev:10.0
+    build:
+      dockerfile_inline: |
+        FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime8
+        FROM mcr.microsoft.com/dotnet/sdk:10.0
+        COPY --from=runtime8 /usr/share/dotnet/shared /usr/share/dotnet/shared
     working_dir: /repo
     volumes:
       - .:/repo
