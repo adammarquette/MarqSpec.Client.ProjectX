@@ -75,8 +75,20 @@ The maintainer weighed dropping `net8.0` for a major release and declined: **"Sw
 `Microsoft.AspNetCore.SignalR.Client` (gh#123). Minor and patch updates still flow. The hold lifts only with a
 decision to drop `net8.0`, which supersedes this ADR.
 
+### Update 2026-11-28 — the integration tier runs on both targets too
+
+The 2026-08-22 update left the integration tier on `net10.0` only, because running a `net8.0` leg needs the
+`Microsoft.AspNetCore.App 8.x` shared framework and the dev container did not carry it (gh#67). It does now:
+`docker-compose.dev.yml` builds `sdk:10.0` with the 8.x shared frameworks copied in from `aspnet:8.0`, so the
+local check and CI agree. `FakeGateway` and `MarqSpec.Client.ProjectX.IntegrationTests` both target
+`net8.0;net10.0`, and the CI integration job reports one result set per framework. The FakeGateway image still
+ships its `net10.0` build only.
+
+A bare machine without the ASP.NET Core 8 runtime fails the `net8.0` integration leg loudly rather than
+silently skipping it; `CONTRIBUTING.md` names the prerequisite and the `-f net10.0` escape hatch.
+
 ## Follow-ups
 
-- Cover the `net8.0` transport path in the integration tier without breaking local `dotnet test` — most likely
+- ~~Cover the `net8.0` transport path in the integration tier without breaking local `dotnet test` — most likely
   by giving the dev container both shared frameworks, then multi-targeting `FakeGateway` and the integration
-  project together. Tracked in gh#67.
+  project together. Tracked in gh#67.~~ Done 2026-11-28 (gh#67); see the update above.
