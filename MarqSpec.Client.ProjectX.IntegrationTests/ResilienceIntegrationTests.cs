@@ -82,6 +82,42 @@ public class ResilienceIntegrationTests : IAsyncLifetime
     }
 
     /// <summary>
+    /// The other write whose effect accumulates across replays (ADR-0002, R-4.4, gh#98).
+    /// </summary>
+    /// <remarks>
+    /// A 5xx on a sized partial close is as ambiguous as one on a placement: the venue may have reduced the
+    /// position and lost the acknowledgement. A retry would reduce it AGAIN, and on a small position overshoot
+    /// past flat into an opposing one. Counted at the gateway, so a guard that is never consulted cannot pass.
+    /// </remarks>
+    [Fact]
+    public async Task PartialClosePosition_ShouldReachTheGatewayExactlyOnce_WhenItFailsWith500()
+    {
+        await _gateway.ArmFaultAsync(new { pathSuffix = "/api/Position/partialCloseContract", status = 500, remaining = 5 });
+
+        var act = async () => await _client.PartialClosePositionAsync(
+            FakeGatewayFixture.KnownAccountId, FakeGatewayFixture.KnownContractId, size: 1);
+
+        await act.Should().ThrowAsync<Exception>("the fault must surface to the caller, not be retried away");
+
+        (await _gateway.RequestCountAsync("/api/Position/partialCloseContract"))
+            .Should().Be(1, "a sized partial close is not idempotent -- a retry after a lost ack reduces twice");
+    }
+
+    [Fact]
+    public async Task PartialClosePosition_ShouldNotRetry_EvenOn429()
+    {
+        await _gateway.ArmFaultAsync(new { pathSuffix = "/api/Position/partialCloseContract", status = 429, remaining = 5, retryAfterSeconds = 1 });
+
+        var act = async () => await _client.PartialClosePositionAsync(
+            FakeGatewayFixture.KnownAccountId, FakeGatewayFixture.KnownContractId, size: 1);
+
+        await act.Should().ThrowAsync<Exception>();
+
+        (await _gateway.RequestCountAsync("/api/Position/partialCloseContract"))
+            .Should().Be(1, "even a rate-limit response is not safe to auto-retry for a partial close");
+    }
+
+    /// <summary>
     /// A window wide enough to contain everything the gateway seeds. The order search requires one — see
     /// gh#57 — so these retry tests must supply it; they are about the pipeline, not about the window.
     /// </summary>
