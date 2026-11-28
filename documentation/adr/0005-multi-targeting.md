@@ -62,6 +62,19 @@ principle: *a local check that disagrees with CI is worse than no local check.*
 Buying `net8.0` transport coverage at the price of a `dotnet test` that no longer runs locally is the wrong
 trade at this size. The unit tier is where the library's own logic lives, and it now covers both runtimes.
 
+### Update 2026-11-28 — the .NET 11 package majors are held at 10.x
+
+.NET 8 left support on 2026-11-10 and .NET 11.0.0 shipped the same day. Its package line has no `net8.0` build:
+the `Microsoft.Extensions.*` 11 bumps (gh#112, gh#115) hung the `net8.0` test host, and
+`Microsoft.AspNetCore.SignalR.Client` 11.0.0 (gh#117) ships neither a `net8.0` nor a `net10.0` asset. Taking
+them would also push the 11.x family onto every `net10.0` consumer, over its 10.x shared framework.
+
+The maintainer weighed dropping `net8.0` for a major release and declined: **"Switch to 10.x"**, then
+**"Keep net8.0"**. The targets stay `net8.0;net10.0`, the library stays on the 10.x LTS line, and
+`.github/dependabot.yml` ignores semver-major updates for `Microsoft.Extensions.*` and
+`Microsoft.AspNetCore.SignalR.Client` (gh#123). Minor and patch updates still flow. The hold lifts only with a
+decision to drop `net8.0`, which supersedes this ADR.
+
 ## Follow-ups
 
 - Cover the `net8.0` transport path in the integration tier without breaking local `dotnet test` — most likely

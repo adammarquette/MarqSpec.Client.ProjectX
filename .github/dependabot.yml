@@ -33,6 +33,14 @@ updates:
       # LICENSE CAP: FluentAssertions v8+ is commercially licensed. Do not let a bot walk into that.
       - dependency-name: "FluentAssertions"
         versions: [">=8.0.0"]
+      # TARGET CAP: the library targets net8.0;net10.0 and stays on the 10.x LTS package line (ADR-0005,
+      # gh#123). The .NET 11 majors ship no net8.0 build (SignalR.Client 11 ships no net10.0 build either), so
+      # they hang the net8.0 test host and push 11.x onto net10.0 consumers. Minor and patch updates still
+      # flow. Lift this only together with dropping net8.0, which is a major release.
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.AspNetCore.SignalR.Client"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
