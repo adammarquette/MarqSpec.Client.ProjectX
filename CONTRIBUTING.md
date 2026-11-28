@@ -167,8 +167,19 @@ The `FakeGateway` service serves the REST surface and both SignalR hubs, so the 
 and in CI. Live-credentialed tests are opt-in and separately tagged; see the
 [QA contract](MarqSpec.Client.ProjectX.IntegrationTests/AGENTS.md).
 
+Both test tiers run on `net8.0` **and** `net10.0`, so a bare-machine `dotnet test` needs the
+**`Microsoft.AspNetCore.App` 8.x and 10.x** shared frameworks, not just the .NET 8 base runtime — the integration
+tier hosts the fake gateway, an ASP.NET Core app, in-process. Without the 8.x one, the `net8.0` integration leg
+fails with *"You must install or update .NET … framework=Microsoft.AspNetCore.App"*. Either install the
+[ASP.NET Core 8 runtime](https://dotnet.microsoft.com/download/dotnet/8.0), use the dev container below (it
+carries both), or run one framework:
+
+```bash
+dotnet test -f net10.0                 # the escape hatch: one framework, no ASP.NET Core 8 needed
+```
+
 For a reproducible toolchain (and to sidestep Windows blocking freshly built unsigned assemblies):
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm sdk dotnet test
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --build sdk dotnet test
 ```

@@ -82,10 +82,13 @@ dotnet build MarqSpec.Client.ProjectX.slnx
 dotnet test
 ```
 
-**That is the whole setup** — no credentials, no Docker, no network. Unit tests are fully mocked; the
-integration tier starts a fake ProjectX gateway in-process on an ephemeral port and drives the client against it
-over real HTTP and a real WebSocket, including both SignalR hubs
-([ADR-0007](documentation/adr/0007-local-test-environment.md)).
+**That is the whole setup** — no credentials, no Docker, no network — given the .NET 10 SDK and the
+**ASP.NET Core 8 and 10 runtimes**. Both test tiers run on `net8.0` and `net10.0`, and the integration tier hosts
+the fake gateway, an ASP.NET Core app, so the .NET 8 *base* runtime alone is not enough: without ASP.NET Core 8
+the `net8.0` integration leg fails. `dotnet test -f net10.0` runs one framework; the dev container below carries
+both ([CONTRIBUTING](CONTRIBUTING.md#local-development)). Unit tests are fully mocked; the integration tier
+starts a fake ProjectX gateway in-process on an ephemeral port and drives the client against it over real HTTP
+and a real WebSocket, including both SignalR hubs ([ADR-0007](documentation/adr/0007-local-test-environment.md)).
 
 Optional — for pointing the sample apps at a fake venue, or reproducing a container problem:
 
@@ -97,7 +100,7 @@ PROJECTX_FAKE_GATEWAY_URL=http://localhost:8080 dotnet test
 And for a toolchain identical to CI's, which also sidesteps Windows blocking freshly built unsigned assemblies:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm sdk dotnet test
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --build sdk dotnet test
 ```
 
 Tests against the **real** gateway are tagged `Category=Live`, run only when credentials are present, and are

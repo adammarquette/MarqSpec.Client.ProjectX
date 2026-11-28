@@ -98,6 +98,8 @@ jobs:
 
       # No credentials, no services, no Docker: the suite starts the fake gateway in-process on an ephemeral
       # port (ADR-0007). That is exactly what lets this be a REQUIRED check rather than a manual ritual.
+      # It runs once per target framework (gh#67); the 8.0.x SDK above supplies the ASP.NET Core 8 shared
+      # framework the net8.0 leg needs.
       # Category!=Live keeps the real-venue tier out; it is opt-in and never gates a merge.
       - name: Integration tests (fake gateway)
         run: >-
