@@ -35,7 +35,7 @@
       Http.Resilience and Polly.Core ship from dotnet/extensions, a different release train from the
       Microsoft.Extensions.* packages below, so their versions are not expected to match.
     -->
-    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.9.0" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.11.1" />
     <PackageVersion Include="Polly.Core" Version="8.9.1" />
   </ItemGroup>
 
