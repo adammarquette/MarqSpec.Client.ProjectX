@@ -26,7 +26,7 @@
   <ItemGroup Label="Library — transport">
     <PackageVersion Include="Refit" Version="16.4.0" />
     <PackageVersion Include="Refit.HttpClientFactory" Version="16.4.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Library — resilience">
@@ -40,8 +40,8 @@
 
   <ItemGroup Label="Library — configuration, options, logging">
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.15" />
   </ItemGroup>
 
