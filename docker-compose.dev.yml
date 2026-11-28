@@ -14,7 +14,15 @@
 
 services:
   sdk:
-    image: mcr.microsoft.com/dotnet/sdk:10.0
+    # The 11.0 SDK builds both target frameworks but carries only the 11.0 runtimes. The net10.0 unit leg and
+    # the net10.0 integration tier need Microsoft.NETCore.App and Microsoft.AspNetCore.App 10.x as well, so
+    # they are layered in from the official runtime image rather than fetched by a script (ADR-0013).
+    image: projectx-sdk-dev:11.0
+    build:
+      dockerfile_inline: |
+        FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime10
+        FROM mcr.microsoft.com/dotnet/sdk:11.0
+        COPY --from=runtime10 /usr/share/dotnet/shared /usr/share/dotnet/shared
     working_dir: /repo
     volumes:
       - .:/repo

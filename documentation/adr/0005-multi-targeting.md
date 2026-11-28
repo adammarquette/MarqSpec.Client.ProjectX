@@ -1,6 +1,6 @@
 # ADR-0005 — Multi-target `net8.0` and `net10.0`
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0013](0013-target-net10-and-net11.md) (2026-11-28, gh#119)
 
 ## Context
 

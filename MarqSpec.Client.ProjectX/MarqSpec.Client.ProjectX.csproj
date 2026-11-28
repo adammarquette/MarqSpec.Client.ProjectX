@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Both targets are first-class; a change must compile clean under both (ADR-0005). -->
-    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <!-- Both targets are first-class; a change must compile clean under both (ADR-0013). -->
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 

@@ -1,7 +1,10 @@
 # Build context is the REPOSITORY ROOT, not this directory — the build needs Directory.Build.props,
 # Directory.Packages.props and the library project, all of which live above here.
 #   docker build -f MarqSpec.Client.ProjectX.FakeGateway/Dockerfile .
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# The SDK is 11.0 because global.json pins it and the library it references builds net11.0 too. The fake itself
+# multi-targets with the integration tier; the image publishes its net10.0 build, so the runtime stage stays
+# aspnet:10.0 (ADR-0013).
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 
 # Restore against the manifests first so a source-only change does not re-resolve every package.
@@ -18,7 +21,7 @@ COPY MarqSpec.Client.ProjectX/ MarqSpec.Client.ProjectX/
 COPY MarqSpec.Client.ProjectX.FakeGateway/ MarqSpec.Client.ProjectX.FakeGateway/
 
 RUN dotnet publish MarqSpec.Client.ProjectX.FakeGateway/MarqSpec.Client.ProjectX.FakeGateway.csproj \
-    -c Release -o /app --no-restore \
+    -c Release -f net10.0 -o /app --no-restore \
     -p:MinVerVersionOverride=$VERSION
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime

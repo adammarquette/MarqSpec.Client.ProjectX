@@ -9,8 +9,8 @@
 
     The library's dependency surface is part of its public contract (R-10.5) — trading-copilot
     compiles against this assembly, so a version conflict here becomes their problem. Adding a
-    dependency needs a line in the PR saying why, and it must support net8.0, not just restore
-    (ADR-0005).
+    dependency needs a line in the PR saying why, and it must support net10.0 and net11.0, not just
+    restore (ADR-0013).
   -->
 
   <PropertyGroup>
@@ -26,7 +26,11 @@
   <ItemGroup Label="Library — transport">
     <PackageVersion Include="Refit" Version="16.4.0" />
     <PackageVersion Include="Refit.HttpClientFactory" Version="16.4.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.15" />
+    <!--
+      11.0.0 ships net11.0, netstandard2.0 and net462 only, so the net10.0 build of this library binds the
+      netstandard2.0 asset. That is the build the integration tier runs (ADR-0013).
+    -->
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Library — resilience">
@@ -34,15 +38,15 @@
       Http.Resilience and Polly.Core ship from dotnet/extensions, a different release train from the
       Microsoft.Extensions.* packages below, so their versions are not expected to match.
     -->
-    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.9.0" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="11.0.1" />
     <PackageVersion Include="Polly.Core" Version="8.9.1" />
   </ItemGroup>
 
   <ItemGroup Label="Library — configuration, options, logging">
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Apps and tests — configuration hosts">
@@ -52,12 +56,12 @@
       exactly how NU1109 arrives — a transitive Microsoft.Extensions.Logging 10.0.11 against a lower
       centrally pinned Abstractions. Bump the group, not one member of it.
     -->
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Test stack">

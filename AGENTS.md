@@ -25,7 +25,7 @@ start**. The role contracts follow *what you are doing* rather than where a file
 ## What this repo is
 
 A transport client, published as the NuGet package `MarqSpec.Client.ProjectX` and multi-targeting
-`net8.0;net10.0`. Solution `MarqSpec.Client.ProjectX.slnx`: the library, its unit tests, its integration tests,
+`net10.0;net11.0`. Solution `MarqSpec.Client.ProjectX.slnx`: the library, its unit tests, its integration tests,
 a `FakeGateway` that stands in for the venue locally, plus `Samples` and `Diagnostics` console apps. Build with
 `dotnet build MarqSpec.Client.ProjectX.slnx`; before a PR, `dotnet format --verify-no-changes` and unit tests
 green.

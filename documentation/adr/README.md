@@ -25,7 +25,7 @@ obvious thing", or when a change would break a consumer. Routine implementation 
 | [0002](0002-resilience-and-idempotency.md) | Resilience policy, and the idempotency boundary | Accepted |
 | [0003](0003-jwt-acquisition-and-cache.md) | JWT acquisition and in-memory token cache | Accepted |
 | [0004](0004-hub-client-is-a-singleton.md) | The SignalR hub client is a singleton | Accepted |
-| [0005](0005-multi-targeting.md) | Multi-target `net8.0` and `net10.0` | Accepted |
+| [0005](0005-multi-targeting.md) | Multi-target `net8.0` and `net10.0` | Superseded by [0013](0013-target-net10-and-net11.md) |
 | [0006](0006-tag-driven-versioning.md) | The git tag is the version | Accepted |
 | [0007](0007-local-test-environment.md) | A fake gateway, not a request stub, for local and CI testing | Accepted |
 | [0008](0008-branch-ladder-and-governance.md) | Branch ladder, merge methods, and repo governance | Accepted |
@@ -33,6 +33,7 @@ obvious thing", or when a change would break a consumer. Routine implementation 
 | [0010](0010-order-search-window-is-required.md) | The order-search window is required, and the DTO rename is reverted | Accepted, supersedes [0009](0009-search-order-window-rename.md) |
 | [0011](0011-trade-direction-is-nullable.md) | Trade direction stays on the wire numbers; absence is null | Accepted |
 | [0012](0012-order-side-is-nullable.md) | Order side stays on the wire numbers; absence is null | Accepted |
+| [0013](0013-target-net10-and-net11.md) | Target `net10.0` and `net11.0`; drop `net8.0` | Accepted |
 
 *Adding a record? Add its row here in the same PR, and add a routing entry in
 [`../README.md`](../README.md) if the corpus shape changes.*

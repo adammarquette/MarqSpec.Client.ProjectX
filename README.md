@@ -7,7 +7,7 @@ client**: it moves requests and events, and it makes no trading decisions
 Consumed as a submodule by [trading-copilot](https://github.com/adammarquette/trading-copilot), and published to
 nuget.org.
 
-Targets **.NET 8.0** and **.NET 10.0**.
+Targets **.NET 10.0** and **.NET 11.0** (since 4.0.0; `net8.0` was dropped — [ADR-0013](documentation/adr/0013-target-net10-and-net11.md)).
 
 ## For AI agents & new readers — start here
 

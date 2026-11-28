@@ -769,7 +769,11 @@ Both are marked `[Obsolete]` and produce a compiler warning; neither has been re
 
 ## Requirements
 
-- .NET 8.0 or .NET 10.0 — the package multi-targets both, and both are first-class
+- .NET 10.0 or .NET 11.0 — the package multi-targets both, and both are first-class. `net8.0` was dropped in
+  4.0.0; stay on 3.x if you cannot move off it
+- `Microsoft.Extensions.*` 11.x — the package depends on the 11.x line on **both** targets, so a `net10.0`
+  consumer resolves those packages over its 10.x shared framework, and any central pin at 10.x must move to 11.x
+  (otherwise restore fails with NU1109)
 - Valid ProjectX API credentials
 
 ## License

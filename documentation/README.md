@@ -35,7 +35,8 @@ nothing is rewritten in place. Records grow by dated `## Update` entries under a
 | [0002](adr/0002-resilience-and-idempotency.md) | 0.9K | **Changing anything about retry.** The order-placement exclusion lives here |
 | [0003](adr/0003-jwt-acquisition-and-cache.md) | 0.7K | Touching auth, token lifetime, or the `ApiKey`-is-a-username trap |
 | [0004](adr/0004-hub-client-is-a-singleton.md) | 0.5K | Changing a DI lifetime — the consumer depends on the singleton |
-| [0005](adr/0005-multi-targeting.md) | 0.4K | Adding a dependency, or wondering why `net8.0` is still here |
+| [0005](adr/0005-multi-targeting.md) | 0.4K | History only — superseded by 0013 |
+| [0013](adr/0013-target-net10-and-net11.md) | 0.6K | Adding a dependency, or wondering why the targets are `net10.0` and `net11.0` |
 | [0006](adr/0006-tag-driven-versioning.md) | 0.6K | Cutting a release, or looking for `<Version>` and not finding it |
 | [0007](adr/0007-local-test-environment.md) | 0.8K | Working on the fake gateway, compose, or the integration tier |
 | [0008](adr/0008-branch-ladder-and-governance.md) | 0.7K | Anything about branches, merge methods, rulesets or labels |

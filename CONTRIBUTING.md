@@ -163,6 +163,11 @@ docker compose up -d fake-gateway     # a local stand-in for the ProjectX venue
 dotnet test                            # unit + integration, no credentials required
 ```
 
+A bare-machine `dotnet test` needs the **.NET 11 SDK** (pinned by `global.json`) **and** the .NET 10 runtimes
+(`Microsoft.NETCore.App` and `Microsoft.AspNetCore.App` 10.x), because both test tiers run on `net10.0` and
+`net11.0` ([ADR-0013](documentation/adr/0013-target-net10-and-net11.md)).
+The dev container below carries both.
+
 The `FakeGateway` service serves the REST surface and both SignalR hubs, so the integration suite runs offline
 and in CI. Live-credentialed tests are opt-in and separately tagged; see the
 [QA contract](MarqSpec.Client.ProjectX.IntegrationTests/AGENTS.md).

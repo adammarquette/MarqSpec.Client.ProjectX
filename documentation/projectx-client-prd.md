@@ -116,7 +116,7 @@ consumer.
 ## R-10 — Distribution
 
 - **R-10.1** Published to nuget.org as `MarqSpec.Client.ProjectX`.
-- **R-10.2** Multi-targets `net8.0` and `net10.0`.
+- **R-10.2** Multi-targets `net10.0` and `net11.0`. See [ADR-0013](adr/0013-target-net10-and-net11.md).
 - **R-10.3** Ships a **symbol package** (`.snupkg`) and a deterministic, SourceLink-enabled build.
 - **R-10.4** Versioned per **SemVer 2.0**, derived from the git tag — no version is declared in a file. See
   [ADR-0006](adr/0006-tag-driven-versioning.md).
@@ -154,6 +154,7 @@ consumer.
 
 | Interface | Endpoint | Notes |
 |---|---|---|
+| 2026-11-28 | R-10.2 now targets `net10.0` and `net11.0`; `net8.0` dropped (ADR-0013, gh#119). |
 | REST | `https://api.topstepx.com` | Contract mirrored in `swagger.json` at the repo root — **when a model and the swagger disagree, the swagger wins** |
 | Auth | `POST /api/Auth/loginKey` | Returns a JWT; subsequent calls use `Authorization: Bearer` |
 | User hub | `https://rtc.topstepx.com/hubs/user` | SignalR Core, JSON protocol |

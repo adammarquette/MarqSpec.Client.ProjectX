@@ -23,7 +23,7 @@ that *independently*, so intent and implementation are verified separately.
 
 ## Standards
 
-**Multi-targets `net8.0;net10.0`, C# latest.** File-scoped namespaces, nullable on, **warnings-as-errors**,
+**Multi-targets `net10.0;net11.0`, C# latest.** File-scoped namespaces, nullable on, **warnings-as-errors**,
 immutability by default, **DI through the constructor**, async-all-the-way with `CancellationToken` on every
 public async method, structured logging via `ILogger`, exhaustive switches. **Money, prices and tick sizes are
 `decimal` — never `float`/`double`.** Define queries in fluent / method syntax, never LINQ query-comprehension.

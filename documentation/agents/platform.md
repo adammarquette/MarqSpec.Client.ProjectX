@@ -10,7 +10,7 @@ Governs the pipeline, the local test environment, and the path a package takes t
 | Local stack | [`docker-compose.yml`](../../docker-compose.yml), [`docker-compose.dev.yml`](../../docker-compose.dev.yml) |
 | Build and packaging properties | `Directory.Build.props`, `Directory.Packages.props`, `global.json` |
 | Repo governance that lives in GitHub settings | [ADR-0008](../adr/0008-branch-ladder-and-governance.md), reproduced by `bootstrap.sh` |
-| Platform decisions | [ADR-0005](../adr/0005-multi-targeting.md), [ADR-0006](../adr/0006-tag-driven-versioning.md), [ADR-0007](../adr/0007-local-test-environment.md), [ADR-0008](../adr/0008-branch-ladder-and-governance.md) |
+| Platform decisions | [ADR-0013](../adr/0013-target-net10-and-net11.md), [ADR-0006](../adr/0006-tag-driven-versioning.md), [ADR-0007](../adr/0007-local-test-environment.md), [ADR-0008](../adr/0008-branch-ladder-and-governance.md) |
 
 ## Role
 
@@ -45,9 +45,10 @@ The root contract's five apply here unchanged. Four land specifically on the pip
 - **MinVer needs tag history.** `actions/checkout` defaults to a shallow clone, which yields `0.0.0-alpha.0`
   instead of the tagged version — and it does so *silently*, producing a package rather than an error. Any job
   that packs needs `fetch-depth: 0` (ADR-0006).
-- **Both target frameworks, everywhere.** `net8.0` and `net10.0` are both first-class (ADR-0005); a job that
-  installs only one SDK is a job that stops catching one of them. CodeQL historically installed only the 10.0
-  SDK; it now matches `ci.yml` (`8.0.x` and `10.0.x`).
+- **Both target frameworks, everywhere.** `net10.0` and `net11.0` are both first-class (ADR-0013); a job that
+  installs only one SDK is a job that stops catching one of them. Every workflow installs `10.0.x` and `11.0.x`:
+  the 11.0 SDK builds both targets, and the 10.0 install supplies the runtime the `net10.0` legs execute on.
+  `global.json` pins the 11.0 SDK, so a machine with only the 10.0 SDK cannot build at all.
 - **A script authored on Windows commits as `100644`.** CI invoking `./scripts/foo.sh` then dies with exit 126
   while a local `bash scripts/foo.sh` passes. Fix it in the same commit with
   `git update-index --chmod=+x <path>`.

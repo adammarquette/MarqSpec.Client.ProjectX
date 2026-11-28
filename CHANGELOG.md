@@ -12,6 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking changes
+
+**Targets `net10.0` and `net11.0`; `net8.0` is dropped** ([ADR-0013](documentation/adr/0013-target-net10-and-net11.md),
+gh#119). .NET 8 left support on 2026-11-10, and the .NET 11 package line ships no `net8.0` build. A consumer
+still on `net8.0` stays on 3.x.
+
+**Dependencies move to the .NET 11 line on both targets:** `Microsoft.Extensions.*` 11.0.0,
+`Microsoft.Extensions.Http.Resilience` 11.0.1, `Microsoft.AspNetCore.SignalR.Client` 11.0.0. Two consequences
+for `net10.0` consumers:
+
+- `Microsoft.Extensions.*` **11.x flows onto your `net10.0` app transitively**, over the 10.x shared framework.
+  A central pin at 10.x must move to 11.x, or restore fails with NU1109.
+- `Microsoft.AspNetCore.SignalR.Client` 11.0.0 ships no `net10.0` build, so on `net10.0` it resolves its
+  **`netstandard2.0`** asset. Both test tiers run on `net10.0` and `net11.0`, so that is a build under test.
+
+The next published tag is a **major** (4.0.0). No file declares a version
+([ADR-0006](documentation/adr/0006-tag-driven-versioning.md)).
+
 ## [3.0.0] - 2026-08-28
 
 ### Breaking changes

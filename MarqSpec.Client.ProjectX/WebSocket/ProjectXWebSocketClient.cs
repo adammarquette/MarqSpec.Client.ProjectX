@@ -655,7 +655,8 @@ public class ProjectXWebSocketClient : IProjectXWebSocketClient
             .Build();
 
         // Set on the connection rather than the builder: the builder-level extension methods for these
-        // arrived after net8.0, and both target frameworks are first-class (ADR-0005).
+        // arrived after net8.0, which this library targeted until 4.0.0. Kept as-is because it is behaviour-
+        // neutral on both current targets (ADR-0013).
         connection.HandshakeTimeout = TimeSpan.FromSeconds(_options.HandshakeTimeoutSeconds);
         connection.KeepAliveInterval = TimeSpan.FromSeconds(_options.KeepAliveIntervalSeconds);
         connection.ServerTimeout = TimeSpan.FromSeconds(_options.ServerTimeoutSeconds);

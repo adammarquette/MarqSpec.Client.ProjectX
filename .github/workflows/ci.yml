@@ -43,11 +43,11 @@ jobs:
 
       - uses: actions/setup-dotnet@v6
         with:
-          # Both target frameworks are first-class (ADR-0005). Installing one SDK is how a job stops catching
-          # one of them.
+          # Both target frameworks are first-class (ADR-0013). Installing one SDK is how a job stops catching
+          # one of them. The 11.0 SDK builds both; the 10.0 install is what puts the net10.0 runtime on the box.
           dotnet-version: |
-            8.0.x
             10.0.x
+            11.0.x
 
       - name: Restore
         run: dotnet restore MarqSpec.Client.ProjectX.slnx
@@ -87,8 +87,8 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
-            8.0.x
             10.0.x
+            11.0.x
 
       - name: Restore
         run: dotnet restore MarqSpec.Client.ProjectX.slnx
@@ -153,8 +153,8 @@ jobs:
               sys.exit(1)
 
           # One report per target framework now that the suite multi-targets (gh#66). Taking reports[0]
-          # would enforce the floor against whichever the glob listed first, so a regression on net8.0 could
-          # hide behind net10.0's number. The floor applies to the WORST framework, and every framework is
+          # would enforce the floor against whichever the glob listed first, so a regression on net10.0 could
+          # hide behind net11.0's number. The floor applies to the WORST framework, and every framework is
           # printed so a divergence between them is visible rather than averaged away.
           measured = []
           for report in sorted(reports):
@@ -196,8 +196,8 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
-            8.0.x
             10.0.x
+            11.0.x
 
       # No -p:PackageVersion: MinVer reads the tag, which is why fetch-depth: 0 above is not optional.
       - name: Pack
